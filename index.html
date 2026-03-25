@@ -2200,8 +2200,9 @@ function _cardAcq(a){
   <div class="acq-act-row">
     ${a.tel?`<a href="tel:${telClean}" class="acq-ico ai-call">📞</a>`:`<button class="acq-ico ai-call" style="opacity:.3;cursor:default">📞</button>`}
     ${a.tel?`<a href="https://wa.me/${telWA}" target="_blank" class="acq-ico ai-wa">💬</a>`:`<button class="acq-ico ai-wa" style="opacity:.3;cursor:default">💬</button>`}
-    <button class="acq-ico ai-note" onclick="openNoteSheet('${a.id}','${a.nom.replace(/'/g,'\'')}')">📝</button>
+    <button class="acq-ico ai-note" onclick="openNoteSheet('${a.id}','${a.nom.replace(/'/g,'\'')}','acq')">📝</button>
     <button class="acq-ico ai-match" onclick="showMatching('${a.id}')">🎯</button>
+    ${a.tel ? `<button class="acq-ico ai-send" onclick="sendFicheDecouverte('${a.id}')" title="Envoyer fiche découverte">📤</button>` : `<button class="acq-ico ai-send" style="opacity:.3;cursor:default" title="Numéro manquant">📤</button>`}
     <button class="ai-more" onclick="openConvSheet('${a.id}','next')">⋯</button>
   </div>
   ${sinceHtml&&!isVeille?`<div style="display:flex;justify-content:flex-end;margin-top:6px">${sinceHtml}</div>`:''}
