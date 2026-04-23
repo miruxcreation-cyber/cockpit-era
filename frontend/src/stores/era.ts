@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { Acquereur, Copro, Mandat, Note, Rdv, Secteur } from '../types/domain'
+import type { Acquereur, Copro, Mandat, Note, Proprietaire, Rdv, Secteur } from '../types/domain'
 
 const KEYMAP = {
   mandats: 'mandats',
@@ -9,6 +9,7 @@ const KEYMAP = {
   notes: 'notes',
   secteurs: 't_secteurs',
   copros: 't_copros',
+  proprietaires: 't_proprietaires',
 } as const
 
 async function fetchSeed<T>(name: string): Promise<T[]> {
@@ -25,6 +26,10 @@ function loadLocal<T>(key: string): T[] {
   }
 }
 
+function uid() {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 export const useEraStore = defineStore('era', () => {
   const mandats = ref<Mandat[]>([])
   const acquereurs = ref<Acquereur[]>([])
@@ -32,6 +37,7 @@ export const useEraStore = defineStore('era', () => {
   const notes = ref<Note[]>([])
   const secteurs = ref<Secteur[]>([])
   const copros = ref<Copro[]>([])
+  const proprietaires = ref<Proprietaire[]>([])
   const toasts = ref<Array<{ id: string; text: string }>>([])
   const pinUnlocked = ref(false)
 
@@ -53,16 +59,18 @@ export const useEraStore = defineStore('era', () => {
     localStorage.setItem(KEYMAP.notes, JSON.stringify(notes.value))
     localStorage.setItem(KEYMAP.secteurs, JSON.stringify(secteurs.value))
     localStorage.setItem(KEYMAP.copros, JSON.stringify(copros.value))
+    localStorage.setItem(KEYMAP.proprietaires, JSON.stringify(proprietaires.value))
   }
 
   async function boot() {
-    const [m, a, r, n, s, c] = await Promise.all([
+    const [m, a, r, n, s, c, p] = await Promise.all([
       fetchSeed<Mandat>('mandats'),
       fetchSeed<Acquereur>('acquereurs'),
       fetchSeed<Rdv>('rdv'),
       fetchSeed<Note>('notes'),
       fetchSeed<Secteur>('secteurs'),
       fetchSeed<Copro>('copros'),
+      fetchSeed<Proprietaire>('proprietaires'),
     ])
     mandats.value = loadLocal<Mandat>(KEYMAP.mandats).length ? loadLocal<Mandat>(KEYMAP.mandats) : m
     acquereurs.value = loadLocal<Acquereur>(KEYMAP.acquereurs).length ? loadLocal<Acquereur>(KEYMAP.acquereurs) : a
@@ -70,11 +78,12 @@ export const useEraStore = defineStore('era', () => {
     notes.value = loadLocal<Note>(KEYMAP.notes).length ? loadLocal<Note>(KEYMAP.notes) : n
     secteurs.value = loadLocal<Secteur>(KEYMAP.secteurs).length ? loadLocal<Secteur>(KEYMAP.secteurs) : s
     copros.value = loadLocal<Copro>(KEYMAP.copros).length ? loadLocal<Copro>(KEYMAP.copros) : c
+    proprietaires.value = loadLocal<Proprietaire>(KEYMAP.proprietaires).length ? loadLocal<Proprietaire>(KEYMAP.proprietaires) : p
     saveAll()
   }
 
   function toast(text: string) {
-    const id = Math.random().toString(36).slice(2, 10)
+    const id = uid()
     toasts.value.unshift({ id, text })
     setTimeout(() => {
       toasts.value = toasts.value.filter((t) => t.id !== id)
@@ -83,13 +92,35 @@ export const useEraStore = defineStore('era', () => {
 
   function addNote(content: string, type = 'memo') {
     notes.value.unshift({
-      id: Math.random().toString(36).slice(2, 10),
+      id: uid(),
       titre: 'Note rapide',
       contenu: content,
       type,
       date: new Date().toISOString(),
     })
     saveAll()
+  }
+
+  function addSecteur(data: Omit<Secteur, 'id'>) {
+    secteurs.value.unshift({ id: uid(), ...data })
+    saveAll()
+    toast('✅ Secteur ajouté')
+  }
+
+  function addCopro(data: Omit<Copro, 'id'>) {
+    copros.value.unshift({ id: uid(), ...data })
+    saveAll()
+    toast('✅ Copropriété ajoutée')
+  }
+
+  function addProprietaire(data: Omit<Proprietaire, 'id'>) {
+    proprietaires.value.unshift({ id: uid(), ...data })
+    saveAll()
+    toast('✅ Propriétaire ajouté')
+  }
+
+  function getProprietairesByCopro(coproId: string) {
+    return proprietaires.value.filter((p) => p.coproId === coproId)
   }
 
   function unlockPin(pin: string) {
@@ -127,6 +158,7 @@ export const useEraStore = defineStore('era', () => {
     notes,
     secteurs,
     copros,
+    proprietaires,
     toasts,
     pinUnlocked,
     todayTasks,
@@ -134,6 +166,10 @@ export const useEraStore = defineStore('era', () => {
     saveAll,
     toast,
     addNote,
+    addSecteur,
+    addCopro,
+    addProprietaire,
+    getProprietairesByCopro,
     setMandatStatut,
     unlockPin,
     hydratePinState,
