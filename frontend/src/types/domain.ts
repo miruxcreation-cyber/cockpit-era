@@ -63,3 +63,21 @@ export interface Copro {
   notes?: string
 }
 
+export interface Proprietaire {
+  id: string
+  coproId: string
+  nom: string
+  prenom?: string
+  telephone?: string
+  email?: string
+  numLot?: string
+  typeBien?: string
+  surface?: number
+  etage?: string
+  profil?: string
+  source?: string
+  statut?: string
+  derniereRelance?: string
+  lienDrive?: string
+  notes?: string
+}
