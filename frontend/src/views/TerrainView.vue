@@ -7,21 +7,7 @@ const store = useEraStore()
 const activeTab = ref<'secteurs' | 'prospection'>('secteurs')
 const selectedSecteur = ref<Secteur | null>(null)
 const selectedCopro = ref<Copro | null>(null)
-const sheetOpen = ref(false)
 
-const STATUTS_PROP = [
-  { key: 'non_contacte', label: 'Non contacté', color: 'var(--text3)', bg: 'var(--surface2)' },
-  { key: 'courrier',     label: 'Courrier envoyé', color: 'var(--orange)', bg: 'var(--orange-bg)' },
-  { key: 'contacte',     label: 'Contacté', color: 'var(--blue)', bg: 'var(--blue-bg)' },
-  { key: 'interesse',    label: 'Intéressé', color: 'var(--gold)', bg: 'var(--gold-bg)' },
-  { key: 'chaud',        label: 'Chaud', color: 'var(--red)', bg: 'var(--red-bg)' },
-  { key: 'rdv',          label: 'RDV fixé', color: 'var(--purple)', bg: 'var(--purple-bg)' },
-  { key: 'mandat',       label: 'Mandat pris', color: 'var(--green)', bg: 'var(--green-bg)' },
-]
-
-function statutStyle(key?: string) {
-  return STATUTS_PROP.find(s => s.key === key) || STATUTS_PROP[0]
-}
 
 const grouped = computed(() =>
   store.secteurs.map(secteur => ({
