@@ -54,12 +54,21 @@ export interface Secteur {
   nom: string
   ville?: string
   desc?: string
+  description?: string
+  priorite?: string
+  notes?: string
 }
 
 export interface Copro {
   id: string
   secteurId: string
   adresse: string
+  nom?: string
+  nbLots?: number
+  syndic?: string
+  anneeConstruction?: number
+  reglementCopro?: string
+  lienDrive?: string
   notes?: string
 }
 
