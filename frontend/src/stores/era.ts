@@ -42,6 +42,15 @@ export const useEraStore = defineStore('era', () => {
   const pinUnlocked = ref(false)
 
   const todayTasks = computed(() => {
+    const relancesMandats = computed(() => {
+  return mandats.value.filter(m => {
+    if (!m.lastContact) return true
+
+    const diff = (Date.now() - new Date(m.lastContact).getTime()) / (1000 * 60 * 60 * 24)
+
+    return diff > 7
+  })
+})
     const openRdv = rdv.value.filter((r) => !r.done).length
     const estimations = mandats.value.filter((m) => m.statut === 'estimation').length
     const prospects = acquereurs.value.filter((a) => a.statut === 'prospect').length
@@ -167,6 +176,7 @@ return {
   mandats,
   acquereurs,
   rdv,
+  relancesMandats,
   notes,
   secteurs,
   copros,
