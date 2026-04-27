@@ -173,5 +173,19 @@ export const useEraStore = defineStore('era', () => {
     setMandatStatut,
     unlockPin,
     hydratePinState,
+function updateMandat(updatedMandat: Mandat) {
+  const index = mandats.value.findIndex(m => m.id === updatedMandat.id)
+  if (index === -1) return
+
+  mandats.value[index] = {
+    ...mandats.value[index],
+    ...updatedMandat
   }
-})
+
+  saveAll()
+}
+
+return {
+  hydratePinState,
+  updateMandat
+}
