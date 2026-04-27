@@ -30,16 +30,15 @@ const handleClick = async (path: string) => {
 
 <template>
   <nav class="tabs">
-    <a
+    <button
       v-for="tab in tabs"
       :key="tab.key"
-      href="#"
       class="tab"
       :class="{ on: activeTab === tab.key }"
-      @click.prevent="handleClick(tab.path)"
+      @click="handleClick(tab.path)"
     >
       <span class="tab-ico">{{ tab.icon }}</span>
       <span class="tab-lbl">{{ tab.label }}</span>
-    </a>
+    </button>
   </nav>
 </template>
