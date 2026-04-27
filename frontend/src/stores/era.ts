@@ -191,3 +191,12 @@ return {
 
   updateMandat
 }
+eraStore.addMandat({
+  ...data,
+  statut: 'estimation'
+})if (mandat.statut === 'estimation') return 'purple'
+  const relances = mandats.value.filter(m => {
+  if (!m.lastContact) return true
+  const diff = (Date.now() - new Date(m.lastContact).getTime()) / (1000 * 60 * 60 * 24)
+  return diff > 7
+})
