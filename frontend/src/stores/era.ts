@@ -200,3 +200,10 @@ eraStore.addMandat({
   const diff = (Date.now() - new Date(m.lastContact).getTime()) / (1000 * 60 * 60 * 24)
   return diff > 7
 })
+const relancesMandats = computed(() => {
+  return mandats.value.filter(m => {
+    if (!m.lastContact) return true
+    const diff = (Date.now() - new Date(m.lastContact).getTime()) / (1000 * 60 * 60 * 24)
+    return diff > 7
+  })
+})
