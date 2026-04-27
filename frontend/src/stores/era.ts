@@ -185,7 +185,22 @@ function updateMandat(updatedMandat: Mandat) {
   saveAll()
 }
 
-return {
+    return {
+  mandats,
+  acquereurs,
+  rdv,
+  notes,
+  secteurs,
+  copros,
+  proprietaires,
+
+  addMandat,
+  addAcquereur,
+  addNote,
+
+  setMandatStatut,
+  unlockPin,
   hydratePinState,
+
   updateMandat
 }
