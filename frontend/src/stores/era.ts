@@ -151,28 +151,6 @@ export const useEraStore = defineStore('era', () => {
     saveAll()
   }
 
-  return {
-    mandats,
-    acquereurs,
-    rdv,
-    notes,
-    secteurs,
-    copros,
-    proprietaires,
-    toasts,
-    pinUnlocked,
-    todayTasks,
-    boot,
-    saveAll,
-    toast,
-    addNote,
-    addSecteur,
-    addCopro,
-    addProprietaire,
-    getProprietairesByCopro,
-    setMandatStatut,
-    unlockPin,
-    hydratePinState,
 function updateMandat(updatedMandat: Mandat) {
   const index = mandats.value.findIndex(m => m.id === updatedMandat.id)
   if (index === -1) return
@@ -185,7 +163,7 @@ function updateMandat(updatedMandat: Mandat) {
   saveAll()
 }
 
-    return {
+return {
   mandats,
   acquereurs,
   rdv,
@@ -193,10 +171,19 @@ function updateMandat(updatedMandat: Mandat) {
   secteurs,
   copros,
   proprietaires,
+  toasts,
+  pinUnlocked,
+  todayTasks,
 
-  addMandat,
-  addAcquereur,
+  boot,
+  saveAll,
+  toast,
+
   addNote,
+  addSecteur,
+  addCopro,
+  addProprietaire,
+  getProprietairesByCopro,
 
   setMandatStatut,
   unlockPin,
