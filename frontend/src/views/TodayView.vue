@@ -168,7 +168,9 @@ function markRdvDone(r: any) {
     </template>
 <template v-if="mandatsARelancer.length">
   <div class="section-head">
-    <span class="section-title">📞 Mandats à relancer</span>
+  <span class="section-title" @click="router.push('/mandats')" style="cursor:pointer">
+  📞 Mandats à relancer
+</span>
     <span class="count-badge">{{ mandatsARelancer.length }}</span>
   </div>
 
