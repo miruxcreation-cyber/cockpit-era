@@ -126,6 +126,12 @@ body {
   font-weight: 600;
 }
 
+.tab {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
 .tabs {
   background: rgba(10, 10, 15, 0.9);
   backdrop-filter: blur(20px);
