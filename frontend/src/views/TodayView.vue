@@ -166,7 +166,21 @@ function markRdvDone(r: any) {
         </div>
       </div>
     </template>
+<template v-if="mandatsARelancer.length">
+  <div class="section-head">
+    <span class="section-title">📞 Mandats à relancer</span>
+    <span class="count-badge">{{ mandatsARelancer.length }}</span>
+  </div>
 
+  <div class="block-list">
+    <div v-for="m in mandatsARelancer" :key="m.id" class="today-card">
+      <div class="tc-body">
+        <div class="tc-name">{{ m.adresse }}</div>
+      </div>
+      <button class="tca" @click="callMandat(m)">📞</button>
+    </div>
+  </div>
+</template>
     <!-- Mandats expirants -->
     <template v-if="mandatsExpirants.length">
       <div class="section-head">
