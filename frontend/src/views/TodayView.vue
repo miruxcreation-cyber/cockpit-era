@@ -70,9 +70,12 @@ function daysToExpire(dateExp: string) {
 function callAcq(a: any) { if (a.tel) window.location.href = `tel:${a.tel}` }
 function callMandat(m: any) { if (m.tel) window.location.href = `tel:${m.tel}` }
 function markRdvDone(r: any) {
-  const t = store.rdv.find(x => x.id === r.id)
+  const t = store.rdv.find(x => x.id === r.id)>
   if (t) { t.done = true; store.saveAll(); store.toast('RDV fait ✓') }
 }
+const mandatsARelancer = computed(() =>
+  store.mandats.slice(0, 3)
+)
 </script>
 
 <template>
