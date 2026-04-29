@@ -17,6 +17,7 @@ export interface Mandat {
   statut: string
   notes?: string
   created?: string
+  lastContact?: string
 }
 
 export interface Acquereur {
@@ -29,6 +30,7 @@ export interface Acquereur {
   secteur?: string
   statut: string
   notes?: string
+  lastContact?: string
 }
 
 export interface Rdv {
