@@ -241,7 +241,7 @@ function back() {
             <div class="proprio-meta">
               <span v-if="p.typeBien" class="badge b-gray">{{ p.typeBien }}</span>
               <span v-if="p.numLot" class="badge b-gray">Lot {{ p.numLot }}</span>
-              :class="statutBadge(p.statut || '')"{{ statutLabel(p.statut || '') }}
+              <span class="badge" :class="statutBadge(p.statut || '')">{{ statutLabel(p.statut || '') }}</span>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px">
