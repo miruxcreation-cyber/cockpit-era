@@ -152,30 +152,23 @@ const mandatsARelancer = computed(() =>
 
     <!-- Relances urgentes -->
     <template v-if="aRelancer.length">
-      <div class="section-head">
-        <span class="section-title">⏰ À relancer</span>
-        <span class="count-badge" style="color:var(--red);background:var(--red-bg)">{{ aRelancer.length }}</span>
-      </div>
-      <div class="block-list">
-        <div v-for="a in aRelancer" :key="a.id" class="today-card today-card-alert">
-          <div class="tc-body">
-            <div class="tc-name">{{ a.nom }}</div>
-            <div class="tc-sub">{{ a.secteur }} · {{ a.type || '—' }}</div>
-          </div>
-          <div class="tc-actions">
-            <button class="tca" @click="callAcq(a)">📞</button>
-            <button class="tca" style="font-size:11px;background:rgba(37,211,102,.1);color:#25d366" @click="callAcq(a)">💬</button>
-          </div>
-        </div>
-      </div>
-    </template>
-<template v-if="mandatsARelancer.length">
+   <div v-if="mandatsARelancer.length">
   <div class="section-head">
-  <span class="section-title" @click="router.push('/mandats')" style="cursor:pointer">
-  📞 Mandats à relancer
-</span>
+    <span class="section-title" @click="router.push('/mandats')" style="cursor:pointer">
+      📞 Mandats à relancer
+    </span>
     <span class="count-badge">{{ mandatsARelancer.length }}</span>
   </div>
+
+  <div class="block-list">
+    <div v-for="m in mandatsARelancer" :key="m.id" class="today-card">
+      <div class="tc-body">
+        <div class="tc-name">{{ m.adresse }}</div>
+      </div>
+      <button class="tca" @click="callMandat(m)">📞</button>
+    </div>
+  </div>
+</div>
 
   <div class="block-list">
     <div v-for="m in mandatsARelancer" :key="m.id" class="today-card">
