@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import TodayView from '../views/TodayView.vue'
 import MandatsView from '../views/MandatsView.vue'
+import NewMandatView from '../views/NewMandatView.vue'
 import AcquereursView from '../views/AcquereursView.vue'
 import RdvView from '../views/RdvView.vue'
 import TerrainView from '../views/TerrainView.vue'
