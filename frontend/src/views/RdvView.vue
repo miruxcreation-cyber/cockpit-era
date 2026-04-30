@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useEraStore } from '../stores/era'
 import type { Rdv } from '../types/domain'
 
@@ -7,6 +7,61 @@ const store = useEraStore()
 
 const sheetOpen = ref(false)
 const sheetTarget = ref<Rdv | null>(null)
+const showModal = ref(false)
+
+const formRdv = reactive({
+  client: '',
+  date: new Date().toISOString().slice(0, 10),
+  heure: '10:00',
+  objet: '',
+  tel: '',
+  lieu: '',
+  notes: '',
+})
+
+const OBJETS_LIST = [
+  '📊 Estimation',
+  '📋 Prise de mandat',
+  '👁️ Visite',
+  '🔄 Contre-visite',
+  '💬 Découverte',
+  '💰 Offre',
+  '📝 Compromis',
+  '🏛️ Acte',
+  '🚶 Prospection',
+]
+
+function resetForm() {
+  Object.assign(formRdv, {
+    client: '',
+    date: new Date().toISOString().slice(0, 10),
+    heure: '10:00',
+    objet: '',
+    tel: '',
+    lieu: '',
+    notes: '',
+  })
+}
+
+function submitRdv() {
+  if (!formRdv.client.trim() || !formRdv.date) return
+  const newRdv: Rdv = {
+    id: 'rdv-' + Math.random().toString(36).slice(2, 10),
+    client: formRdv.client.trim(),
+    date: formRdv.date,
+    heure: formRdv.heure,
+    objet: formRdv.objet,
+    tel: formRdv.tel,
+    done: false,
+  }
+  ;(newRdv as any).lieu = formRdv.lieu
+  ;(newRdv as any).notes = formRdv.notes
+  store.rdv.unshift(newRdv)
+  store.saveAll()
+  store.toast('RDV ajouté ✓')
+  showModal.value = false
+  resetForm()
+}
 
 const OBJETS: Record<string, { icon: string; color: string; bg: string }> = {
   'prise de mandat': { icon: '📋', color: 'var(--gold)', bg: 'var(--gold-bg)' },
@@ -74,6 +129,12 @@ function markDone(r: Rdv) {
   if (target) { target.done = true; store.saveAll(); store.toast('RDV marqué comme fait ✓') }
 }
 
+function deleteRdv(r: Rdv) {
+  const idx = store.rdv.findIndex(x => x.id === r.id)
+  if (idx !== -1) { store.rdv.splice(idx, 1); store.saveAll(); store.toast('RDV supprimé') }
+  closeSheet()
+}
+
 function openSheet(r: Rdv) { sheetTarget.value = r; sheetOpen.value = true }
 function closeSheet() { sheetOpen.value = false; sheetTarget.value = null }
 
@@ -96,7 +157,7 @@ function waRdv(r: Rdv) {
         <div class="stitle">📅 RDV</div>
         <div class="ssub">Planning de la semaine</div>
       </div>
-      <button class="btn btn-gold">+ Nouveau</button>
+      <button class="btn btn-gold" @click="showModal = true">+ Nouveau</button>
     </div>
 
     <!-- Stats -->
@@ -123,13 +184,11 @@ function waRdv(r: Rdv) {
     <div class="rdv-list">
       <div v-for="group in grouped" :key="group.date" class="rdv-group">
 
-        <!-- En-tête date -->
         <div class="date-header" :class="{ 'date-today': isToday(group.date), 'date-soon': !isToday(group.date) && isSoon(group.date) }">
           <div class="date-label">{{ fmtDate(group.date) }}</div>
           <div class="date-count">{{ group.rdvs.length }} RDV</div>
         </div>
 
-        <!-- Cards RDV -->
         <div v-for="r in group.rdvs" :key="r.id" class="rdv-card" :class="{ 'rdv-today': isToday(r.date), 'rdv-past': isPast(r.date) }">
           <div class="rdv-left">
             <div class="rdv-time">{{ r.heure || '—' }}</div>
@@ -144,7 +203,7 @@ function waRdv(r: Rdv) {
                 <div class="rdv-client">{{ r.client }}</div>
                 <div class="rdv-objet-lbl">{{ r.objet || 'RDV' }}</div>
               </div>
-              <button class="rdv-done-btn" @click="markDone(r)" title="Marquer comme fait">✓</button>
+              <button class="rdv-done-btn" @click="markDone(r)">✓</button>
             </div>
             <div v-if="(r as any).lieu" class="rdv-lieu">📍 {{ (r as any).lieu }}</div>
             <div class="rdv-actions">
@@ -158,7 +217,7 @@ function waRdv(r: Rdv) {
 
       </div>
 
-      <!-- RDV faits récemment -->
+      <!-- RDV faits -->
       <div v-if="done.length" class="rdv-group">
         <div class="date-header date-done">
           <div class="date-label">✅ Récemment faits</div>
@@ -183,11 +242,85 @@ function waRdv(r: Rdv) {
 
       <!-- Vide -->
       <div v-if="!grouped.length && !done.length" class="rdv-empty">
-        <div style="font-size:32px;margin-bottom:8px">📅</div>
-        <div style="font-weight:600;margin-bottom:4px">Aucun RDV à venir</div>
-        <div style="font-size:12px;color:var(--text3)">Appuyez sur + Nouveau pour en créer un</div>
+        <div style="font-size:40px;margin-bottom:12px">📅</div>
+        <div style="font-weight:600;margin-bottom:6px;font-size:16px">Aucun RDV à venir</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Planifiez votre prochain rendez-vous</div>
+        <button class="btn btn-gold" @click="showModal = true">+ Créer un RDV</button>
       </div>
     </div>
+
+    <!-- ═══════════════════════════════════════
+         MODAL — NOUVEAU RDV
+    ═══════════════════════════════════════ -->
+    <Teleport to="body">
+      <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+        <div class="modal-sheet">
+          <div class="modal-header">
+            <div class="modal-title">📅 Nouveau RDV</div>
+            <button class="modal-close" @click="showModal = false; resetForm()">✕</button>
+          </div>
+
+          <div class="modal-body">
+
+            <!-- Client -->
+            <div>
+              <label class="field-label">Nom du client *</label>
+              <input v-model="formRdv.client" class="field-input" placeholder="ex. DUPONT Marie" />
+            </div>
+
+            <!-- Téléphone -->
+            <div>
+              <label class="field-label">Téléphone</label>
+              <input v-model="formRdv.tel" class="field-input" type="tel" placeholder="06 xx xx xx xx" />
+            </div>
+
+            <!-- Date + Heure -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="field-label">Date *</label>
+                <input v-model="formRdv.date" class="field-input" type="date" />
+              </div>
+              <div>
+                <label class="field-label">Heure</label>
+                <input v-model="formRdv.heure" class="field-input" type="time" />
+              </div>
+            </div>
+
+            <!-- Objet -->
+            <div>
+              <label class="field-label">Type de RDV</label>
+              <div class="objet-grid">
+                <button
+                  v-for="obj in OBJETS_LIST"
+                  :key="obj"
+                  class="objet-btn"
+                  :class="{ active: formRdv.objet === obj }"
+                  @click="formRdv.objet = obj"
+                >{{ obj }}</button>
+              </div>
+            </div>
+
+            <!-- Lieu -->
+            <div>
+              <label class="field-label">Lieu / Adresse</label>
+              <input v-model="formRdv.lieu" class="field-input" placeholder="ex. 2 Rue Olympe de Gouges, Saint-Denis" />
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="field-label">Notes de préparation</label>
+              <textarea v-model="formRdv.notes" class="field-input field-textarea" placeholder="Documents à apporter, points à aborder…" />
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);border:0.5px solid var(--border)" @click="showModal = false; resetForm()">Annuler</button>
+            <button class="btn btn-gold" style="flex:2" :disabled="!formRdv.client.trim()" @click="submitRdv">💾 Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Sheet détail RDV -->
     <div v-if="sheetOpen" class="sheet-overlay" @click="closeSheet"></div>
@@ -196,13 +329,13 @@ function waRdv(r: Rdv) {
       <div v-if="sheetTarget" style="padding:0 4px">
         <div class="sheet-title">{{ sheetTarget.client }}</div>
         <div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:16px">
-          {{ fmtDate(sheetTarget.date) }} · {{ sheetTarget.heure }} · {{ sheetTarget.objet }}
+          {{ fmtDate(sheetTarget.date) }} · {{ sheetTarget.heure }} · {{ sheetTarget.objet || 'RDV' }}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <button class="sheet-opt" @click="callRdv(sheetTarget!);closeSheet()">📞 Appeler</button>
           <button class="sheet-opt" @click="waRdv(sheetTarget!);closeSheet()">💬 WhatsApp</button>
           <button class="sheet-opt" style="color:var(--green)" @click="markDone(sheetTarget!);closeSheet()">✓ Marquer comme fait</button>
-          <button class="sheet-opt" style="color:var(--red)" @click="closeSheet()">🗑️ Supprimer</button>
+          <button class="sheet-opt" style="color:var(--red)" @click="deleteRdv(sheetTarget!)">🗑️ Supprimer</button>
         </div>
       </div>
       <button class="sheet-cancel" @click="closeSheet">Annuler</button>
@@ -242,6 +375,26 @@ function waRdv(r: Rdv) {
 .rdv-act { background: var(--surface2); border: none; border-radius: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
 .rdv-act-done { flex: 1; background: var(--green-bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .rdv-empty { text-align: center; padding: 48px 16px; color: var(--text2); }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: flex; align-items: flex-end; }
+.modal-sheet { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; max-height: 92vh; display: flex; flex-direction: column; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 12px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close { background: var(--surface2); border: 0; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; cursor: pointer; color: var(--text2); }
+.modal-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.modal-footer { padding: 12px 16px; border-top: 0.5px solid var(--border); display: flex; gap: 10px; padding-bottom: max(12px, env(safe-area-inset-bottom)); flex-shrink: 0; }
+
+.field-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.field-input { width: 100%; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 10px; padding: 11px 12px; font-size: 14px; color: var(--text); box-sizing: border-box; font-family: inherit; outline: none; }
+.field-input:focus { border-color: var(--gold); }
+.field-textarea { min-height: 80px; resize: none; }
+
+.objet-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 2px; }
+.objet-btn { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+.objet-btn.active { background: var(--gold-bg); color: var(--gold); border-color: rgba(255,214,10,0.4); }
+
+/* Sheet */
 .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
 .status-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-radius: 20px 20px 0 0; border-top: 0.5px solid var(--border2); padding: 12px 16px 34px; z-index: 201; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
 .status-sheet.open { transform: translateY(0); }
