@@ -41,7 +41,6 @@ export const useEraStore = defineStore('era', () => {
   const toasts = ref<Array<{ id: string; text: string }>>([])
   const pinUnlocked = ref(false)
 
-  // ✅ AJOUT PROPRE (relance mandats)
   const relancesMandats = computed(() => {
     return mandats.value.filter(m => {
       if (!m.lastContact) return true
@@ -54,7 +53,6 @@ export const useEraStore = defineStore('era', () => {
     const openRdv = rdv.value.filter((r) => !r.done).length
     const estimations = mandats.value.filter((m) => m.statut === 'estimation').length
     const prospects = acquereurs.value.filter((a) => a.statut === 'prospect').length
-
     return [
       `${openRdv} RDV a traiter`,
       `${estimations} estimations a convertir`,
@@ -82,7 +80,6 @@ export const useEraStore = defineStore('era', () => {
       fetchSeed<Copro>('copros'),
       fetchSeed<Proprietaire>('proprietaires'),
     ])
-
     mandats.value = loadLocal<Mandat>(KEYMAP.mandats).length ? loadLocal<Mandat>(KEYMAP.mandats) : m
     acquereurs.value = loadLocal<Acquereur>(KEYMAP.acquereurs).length ? loadLocal<Acquereur>(KEYMAP.acquereurs) : a
     rdv.value = loadLocal<Rdv>(KEYMAP.rdv).length ? loadLocal<Rdv>(KEYMAP.rdv) : r
@@ -90,7 +87,6 @@ export const useEraStore = defineStore('era', () => {
     secteurs.value = loadLocal<Secteur>(KEYMAP.secteurs).length ? loadLocal<Secteur>(KEYMAP.secteurs) : s
     copros.value = loadLocal<Copro>(KEYMAP.copros).length ? loadLocal<Copro>(KEYMAP.copros) : c
     proprietaires.value = loadLocal<Proprietaire>(KEYMAP.proprietaires).length ? loadLocal<Proprietaire>(KEYMAP.proprietaires) : p
-
     saveAll()
   }
 
@@ -138,52 +134,47 @@ export const useEraStore = defineStore('era', () => {
   function unlockPin(pin: string) {
     const key = 'era_pin_code'
     const current = localStorage.getItem(key)
-
     if (!current) {
       localStorage.setItem(key, pin)
       pinUnlocked.value = true
       sessionStorage.setItem('era_pin_ok', '1')
       return true
     }
-
     pinUnlocked.value = current === pin
     if (pinUnlocked.value) sessionStorage.setItem('era_pin_ok', '1')
-
     return pinUnlocked.value
   }
 
   function hydratePinState() {
-    pinUnlocked.value =
-      sessionStorage.getItem('era_pin_ok') === '1' ||
-      !localStorage.getItem('era_pin_code')
+    pinUnlocked.value = sessionStorage.getItem('era_pin_ok') === '1' || !localStorage.getItem('era_pin_code')
   }
 
   function setMandatStatut(id: string, statut: string) {
     const target = mandats.value.find((m) => m.id === id)
     if (!target) return
-
     target.statut = statut
-
     if (statut === 'actif' && !target.dateSign) {
       target.dateSign = new Date().toISOString().slice(0, 10)
     }
-
     saveAll()
+  }
+
+  function deleteMandat(id: string) {
+    const idx = mandats.value.findIndex(m => m.id === id)
+    if (idx !== -1) {
+      mandats.value.splice(idx, 1)
+      saveAll()
+      toast('🗑️ Mandat supprimé')
+    }
   }
 
   function updateMandat(updatedMandat: Mandat) {
     const index = mandats.value.findIndex(m => m.id === updatedMandat.id)
     if (index === -1) return
-
-    mandats.value[index] = {
-      ...mandats.value[index],
-      ...updatedMandat
-    }
-
+    mandats.value[index] = { ...mandats.value[index], ...updatedMandat }
     saveAll()
   }
 
-  // ✅ RETURN PROPRE
   return {
     mandats,
     acquereurs,
@@ -194,24 +185,20 @@ export const useEraStore = defineStore('era', () => {
     proprietaires,
     toasts,
     pinUnlocked,
-
     todayTasks,
     relancesMandats,
-
     boot,
     saveAll,
     toast,
-
     addNote,
     addSecteur,
     addCopro,
     addProprietaire,
     getProprietairesByCopro,
-
     setMandatStatut,
+    deleteMandat,
     unlockPin,
     hydratePinState,
-
-    updateMandat
+    updateMandat,
   }
 })
