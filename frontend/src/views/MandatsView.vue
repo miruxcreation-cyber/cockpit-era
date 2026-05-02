@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { scoreMatch } from '../composables/useMatching'
 import { useEraStore } from '../stores/era'
 import type { Mandat } from '../types/domain'
@@ -12,7 +12,83 @@ const sheetOpen = ref(false)
 const sheetTarget = ref<Mandat | null>(null)
 const matchSheetOpen = ref(false)
 const matchTarget = ref<Mandat | null>(null)
+const showModal = ref(false)
 
+// ─── Formulaire nouvelle estimation ──────────────────────
+const formMandat = reactive({
+  vendeur: '',
+  tel: '',
+  email: '',
+  adresse: '',
+  type: '',
+  surface: '',
+  prix: '',
+  taux: '7',
+  source: 'direct',
+  mandat: 'exclusif',
+  notes: '',
+})
+
+const TYPES_BIEN = ['Studio', 'T1', 'T2', 'T3', 'T4+', 'Maison', 'Local']
+const TAUX_OPTIONS = ['5', '6', '7', '8']
+
+function resetForm() {
+  Object.assign(formMandat, {
+    vendeur: '', tel: '', email: '', adresse: '',
+    type: '', surface: '', prix: '', taux: '7',
+    source: 'direct', mandat: 'exclusif', notes: '',
+  })
+}
+
+function calcFai(prix: string, taux: string) {
+  const p = Number.parseInt(prix, 10)
+  const t = Number.parseFloat(taux)
+  if (!p || !t) return ''
+  return Math.round(p * (1 + t / 100)).toLocaleString('fr-FR') + ' €'
+}
+
+function calcNetSamir(prix: string, taux: string, source: string) {
+  const p = Number.parseInt(prix, 10)
+  const t = Number.parseFloat(taux)
+  if (!p || !t) return ''
+  const fai = Math.round(p * (1 + t / 100))
+  const com = fai - p
+  const apresMA = source === 'ma' ? com * 0.75 : com
+  const net = Math.round(apresMA * 0.32 * 0.78)
+  return net.toLocaleString('fr-FR') + ' €'
+}
+
+function submitMandat() {
+  if (!formMandat.vendeur.trim() || !formMandat.adresse.trim()) return
+  const prix = formMandat.prix.replace(/\s/g, '')
+  const faiNum = prix ? Math.round(Number(prix) * (1 + Number(formMandat.taux) / 100)) : 0
+  const newMandat: Mandat = {
+    id: 'man-' + Math.random().toString(36).slice(2, 10),
+    vendeur: formMandat.vendeur.trim(),
+    tel: formMandat.tel,
+    email: formMandat.email,
+    adresse: formMandat.adresse.trim(),
+    type: formMandat.type,
+    surface: formMandat.surface,
+    prix: prix,
+    fai: faiNum ? String(faiNum) : '',
+    taux: Number(formMandat.taux),
+    source: formMandat.source,
+    mandat: formMandat.mandat,
+    statut: 'estimation',
+    notes: formMandat.notes,
+    dateSign: '',
+    dateExp: '',
+    created: new Date().toISOString(),
+  }
+  store.mandats.unshift(newMandat)
+  store.saveAll()
+  store.toast('Estimation ajoutée ✓')
+  showModal.value = false
+  resetForm()
+}
+
+// ─── Pipeline & filtres ───────────────────────────────────
 const steps = ['estimation', 'signature', 'actif', 'visite', 'offre', 'compromis', 'acte'] as const
 
 const statutLabels: Record<string, string> = {
@@ -156,7 +232,7 @@ function passerEnActif(id: string) {
         <div class="stitle">📋 Mandats</div>
         <div class="ssub">Pipeline et calcul de commission</div>
       </div>
-      <button class="btn btn-gold">+ Nouveau</button>
+      <button class="btn btn-gold" @click="showModal = true">+ Nouvelle estim.</button>
     </div>
 
     <!-- Pipeline -->
@@ -232,13 +308,11 @@ function passerEnActif(id: string) {
           <div v-if="item.surface" class="card-row"><span class="card-lbl">📐 Surface</span><span class="card-val">{{ item.surface }} m²</span></div>
           <div v-if="item.dateExp" class="card-row"><span class="card-lbl">⏳ Expire</span><span class="card-val">{{ fmtD(item.dateExp) }}</span></div>
 
-          <!-- Timeline -->
           <div style="display:flex;align-items:center;gap:5px;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border)">
             <div v-for="(step, idx) in steps" :key="step" :style="{ width: idx === steps.indexOf(item.statut as never) ? '8px' : '6px', height: idx === steps.indexOf(item.statut as never) ? '8px' : '6px', borderRadius: '50%', background: timelineDotClass(item, idx), flexShrink: '0' }" />
             <span style="font-size:9px;color:var(--text3);margin-left:auto">{{ statutLabels[item.statut] || item.statut }}</span>
           </div>
 
-          <!-- Footer actions -->
           <div class="card-ft">
             <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
               <span class="badge" :class="statutBadgeClass[item.statut] || 'b-gray'" style="cursor:pointer" @click.stop="openSheet(item)">
@@ -248,11 +322,11 @@ function passerEnActif(id: string) {
               <span v-else-if="daysToExpire(item) !== null && (daysToExpire(item) || 0) <= 30" class="badge b-orange">⏰ {{ daysToExpire(item) }}j</span>
             </div>
             <div class="acq-act-row">
-              <button class="acq-ico ai-call" :style="!item.tel ? 'opacity:.3;cursor:default' : ''" @click.stop="callMandat(item)">📞</button>
-              <a v-if="item.tel" :href="waLink(item.tel)" target="_blank" class="acq-ico ai-wa" @click.stop>💬</a>
-              <button v-else class="acq-ico ai-wa" style="opacity:.3;cursor:default">💬</button>
-              <button class="acq-ico ai-note" @click.stop="addQuickNote(item)">📝</button>
-              <button class="acq-ico ai-match" @click.stop="openMatchSheet(item)">👥</button>
+              <button class="acq-ico" :style="!item.tel ? 'opacity:.3;cursor:default' : ''" @click.stop="callMandat(item)">📞</button>
+              <a v-if="item.tel" :href="waLink(item.tel)" target="_blank" class="acq-ico" @click.stop>💬</a>
+              <button v-else class="acq-ico" style="opacity:.3;cursor:default">💬</button>
+              <button class="acq-ico" @click.stop="addQuickNote(item)">📝</button>
+              <button class="acq-ico" @click.stop="openMatchSheet(item)">👥</button>
               <button class="ai-more" @click.stop="openSheet(item)">✏️</button>
             </div>
           </div>
@@ -299,7 +373,6 @@ function passerEnActif(id: string) {
 
           <div v-if="item.surface" class="card-row"><span class="card-lbl">📐 Surface</span><span class="card-val">{{ item.surface }} m²</span></div>
 
-          <!-- Acquéreurs potentiels -->
           <div v-if="acqMatches(item).length" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:8px">
             <span style="font-size:9px;color:var(--text3);font-weight:600">Acq. potentiels :</span>
             <span v-for="entry in acqMatches(item).slice(0, 3)" :key="entry.a.id" class="badge b-blue">👤 {{ entry.a.nom.split(' ')[0] }}</span>
@@ -309,16 +382,120 @@ function passerEnActif(id: string) {
           <div class="card-ft" style="margin-top:10px">
             <button class="estim-btn-actif" @click.stop="passerEnActif(item.id)">▶ Passer en mandat actif</button>
             <div class="acq-act-row">
-              <button class="acq-ico ai-call" :style="!item.tel ? 'opacity:.3' : ''" @click.stop="callMandat(item)">📞</button>
-              <a v-if="item.tel" :href="waLink(item.tel)" target="_blank" class="acq-ico ai-wa" @click.stop>💬</a>
-              <button v-else class="acq-ico ai-wa" style="opacity:.3">💬</button>
-              <button class="acq-ico ai-note" @click.stop="addQuickNote(item)">📝</button>
+              <button class="acq-ico" :style="!item.tel ? 'opacity:.3' : ''" @click.stop="callMandat(item)">📞</button>
+              <a v-if="item.tel" :href="waLink(item.tel)" target="_blank" class="acq-ico" @click.stop>💬</a>
+              <button v-else class="acq-ico" style="opacity:.3">💬</button>
+              <button class="acq-ico" @click.stop="addQuickNote(item)">📝</button>
               <button class="acq-ico" style="background:var(--green-bg);color:var(--green)" @click.stop="passerEnActif(item.id)">▶</button>
             </div>
           </div>
         </article>
       </div>
     </div>
+
+    <!-- ═══════════════════════════════════════
+         MODAL — NOUVELLE ESTIMATION
+    ═══════════════════════════════════════ -->
+    <Teleport to="body">
+      <div v-if="showModal" class="modal-overlay" @click.self="showModal = false; resetForm()">
+        <div class="modal-sheet">
+          <div class="modal-header">
+            <div class="modal-title">🟡 Nouvelle estimation</div>
+            <button class="modal-close" @click="showModal = false; resetForm()">✕</button>
+          </div>
+
+          <div class="modal-body">
+
+            <!-- Vendeur -->
+            <div>
+              <label class="field-label">Nom du vendeur *</label>
+              <input v-model="formMandat.vendeur" class="field-input" placeholder="ex. DUPONT Marie" />
+            </div>
+
+            <!-- Tel + Email -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="field-label">Téléphone</label>
+                <input v-model="formMandat.tel" class="field-input" type="tel" placeholder="06 xx xx xx xx" />
+              </div>
+              <div>
+                <label class="field-label">Email</label>
+                <input v-model="formMandat.email" class="field-input" type="email" placeholder="email@mail.fr" />
+              </div>
+            </div>
+
+            <!-- Adresse -->
+            <div>
+              <label class="field-label">Adresse du bien *</label>
+              <input v-model="formMandat.adresse" class="field-input" placeholder="ex. 12 Rue du Stade, 93210 Saint-Denis" />
+            </div>
+
+            <!-- Type + Surface -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="field-label">Type de bien</label>
+                <div class="chips-mini">
+                  <button v-for="t in TYPES_BIEN" :key="t" class="chip-mini" :class="{ active: formMandat.type === t }" @click="formMandat.type = t">{{ t }}</button>
+                </div>
+              </div>
+              <div>
+                <label class="field-label">Surface (m²)</label>
+                <input v-model="formMandat.surface" class="field-input" type="number" placeholder="ex. 55" />
+              </div>
+            </div>
+
+            <!-- Prix net vendeur -->
+            <div>
+              <label class="field-label">Prix net vendeur estimé (€)</label>
+              <input v-model="formMandat.prix" class="field-input" type="number" placeholder="ex. 250000" />
+              <div v-if="formMandat.prix" class="prix-preview">
+                <span>FAI ≈ <strong>{{ calcFai(formMandat.prix, formMandat.taux) }}</strong></span>
+                <span>Net Samir ≈ <strong style="color:var(--gold)">{{ calcNetSamir(formMandat.prix, formMandat.taux, formMandat.source) }}</strong></span>
+              </div>
+            </div>
+
+            <!-- Taux -->
+            <div>
+              <label class="field-label">Taux de commission</label>
+              <div class="chips-mini">
+                <button v-for="t in TAUX_OPTIONS" :key="t" class="chip-mini" :class="{ active: formMandat.taux === t }" @click="formMandat.taux = t">{{ t }}%</button>
+              </div>
+            </div>
+
+            <!-- Source -->
+            <div>
+              <label class="field-label">Source</label>
+              <div class="chips-mini">
+                <button class="chip-mini" :class="{ active: formMandat.source === 'direct' }" @click="formMandat.source = 'direct'">🤝 Direct</button>
+                <button class="chip-mini" :class="{ active: formMandat.source === 'ma' }" @click="formMandat.source = 'ma'">🖥️ MeilleursAgents</button>
+              </div>
+            </div>
+
+            <!-- Type mandat -->
+            <div>
+              <label class="field-label">Type de mandat visé</label>
+              <div class="chips-mini">
+                <button class="chip-mini" :class="{ active: formMandat.mandat === 'exclusif' }" @click="formMandat.mandat = 'exclusif'">⭐ Exclusif</button>
+                <button class="chip-mini" :class="{ active: formMandat.mandat === 'simple' }" @click="formMandat.mandat = 'simple'">📄 Simple</button>
+                <button class="chip-mini" :class="{ active: formMandat.mandat === 'co-exclusif' }" @click="formMandat.mandat = 'co-exclusif'">👥 Co-exclusif</button>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="field-label">Notes (état du bien, observations…)</label>
+              <textarea v-model="formMandat.notes" class="field-input field-textarea" placeholder="ex. 3e étage, balcon 6m², parking, ascenseur…" />
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);border:0.5px solid var(--border)" @click="showModal = false; resetForm()">Annuler</button>
+            <button class="btn btn-gold" style="flex:2" :disabled="!formMandat.vendeur.trim() || !formMandat.adresse.trim()" @click="submitMandat">💾 Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Sheet statut -->
     <div v-if="sheetOpen" class="sheet-overlay" @click="closeSheet"></div>
@@ -370,6 +547,28 @@ function passerEnActif(id: string) {
 .swa-status { background: var(--blue); color: #fff; }
 .card { background: var(--surface); border-radius: 14px; border: 0.5px solid var(--premium-border); padding: 13px; transition: transform .25s; cursor: pointer; position: relative; z-index: 1; }
 .card.swiped { transform: translateX(-120px); border-radius: 14px 0 0 14px; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: flex; align-items: flex-end; }
+.modal-sheet { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; max-height: 92vh; display: flex; flex-direction: column; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 12px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close { background: var(--surface2); border: 0; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; cursor: pointer; color: var(--text2); }
+.modal-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.modal-footer { padding: 12px 16px; border-top: 0.5px solid var(--border); display: flex; gap: 10px; padding-bottom: max(12px, env(safe-area-inset-bottom)); flex-shrink: 0; }
+
+.field-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.field-input { width: 100%; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 10px; padding: 11px 12px; font-size: 14px; color: var(--text); box-sizing: border-box; font-family: inherit; outline: none; }
+.field-input:focus { border-color: var(--gold); }
+.field-textarea { min-height: 80px; resize: none; }
+
+.chips-mini { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chip-mini { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 20px; padding: 5px 11px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+.chip-mini.active { background: var(--gold-bg); color: var(--gold); border-color: rgba(255,214,10,0.4); font-weight: 700; }
+
+.prix-preview { display: flex; justify-content: space-between; margin-top: 8px; padding: 10px 12px; background: var(--surface2); border-radius: 10px; font-size: 12px; color: var(--text2); }
+
+/* Sheet */
 .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
 .status-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-radius: 20px 20px 0 0; border-top: 0.5px solid var(--border2); padding: 12px 16px 34px; z-index: 201; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
 .status-sheet.open { transform: translateY(0); }
