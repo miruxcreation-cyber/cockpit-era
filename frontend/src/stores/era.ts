@@ -159,6 +159,7 @@ export const useEraStore = defineStore('era', () => {
     saveAll()
   }
 
+  // ✅ SUPPRESSION MANDAT
   function deleteMandat(id: string) {
     const idx = mandats.value.findIndex(m => m.id === id)
     if (idx !== -1) {
