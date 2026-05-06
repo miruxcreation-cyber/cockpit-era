@@ -241,7 +241,7 @@ function back() {
             <div class="proprio-meta">
               <span v-if="p.typeBien" class="badge b-gray">{{ p.typeBien }}</span>
               <span v-if="p.numLot" class="badge b-gray">Lot {{ p.numLot }}</span>
-              <span class="badge" :class="statutBadge(p.statut || '')">{{ statutLabel(p.statut || '') }}</span>
+              <span class="badge" :class="statutBadge(p.statut)">{{ statutLabel(p.statut) }}</span>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px">
@@ -432,7 +432,7 @@ function back() {
             <textarea v-model="formProprio.notes" class="field-input field-textarea" placeholder="Informations utiles, historique de contact…" />
           </div>
           <div class="modal-footer">
-            <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);border:0.5px solid var(--border)" @click="showModalProprio = false">Annuler</button>
+            <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);border:1px solid var(--border)" @click="showModalProprio = false">Annuler</button>
             <button class="btn btn-gold" style="flex:2" @click="submitProprio">💾 Enregistrer</button>
           </div>
         </div>
@@ -443,7 +443,8 @@ function back() {
 </template>
 
 <script lang="ts">
-function statutLabel(s: string) {
+function statutLabel(s?: string) {
+  if (!s) return '';
   const map: Record<string, string> = {
     non_contacte: '❓ Non contacté', courrier_envoye: '📬 Courrier envoyé',
     contacte: '📞 Contacté', interesse: '🟡 Intéressé', chaud: '🔥 Chaud',
@@ -451,7 +452,8 @@ function statutLabel(s: string) {
   }
   return map[s] || s
 }
-function statutBadge(s: string) {
+function statutBadge(s?: string) {
+  if (!s) return 'b-gray'
   if (s === 'chaud' || s === 'rdv_fixe') return 'b-red'
   if (s === 'interesse') return 'b-orange'
   if (s === 'mandat_pris') return 'b-green'
@@ -460,53 +462,150 @@ function statutBadge(s: string) {
 </script>
 
 <style scoped>
-.terrain-view { padding-bottom: 90px; }
-.breadcrumb { padding: 12px 16px; font-size: 13px; color: var(--blue); cursor: pointer; display: flex; align-items: center; gap: 6px; }
-.chips-bar { display: flex; gap: 7px; padding: 0 16px 14px; }
-.chip { background: var(--surface); border: 0.5px solid var(--border); border-radius: 20px; padding: 6px 13px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; white-space: nowrap; }
-.chip.active { background: var(--gold-bg); color: var(--gold); border-color: rgba(255,214,10,0.3); }
-.terrain-list { padding: 0 16px; display: flex; flex-direction: column; gap: 9px; }
-.secteur-card { background: var(--surface); border: 0.5px solid var(--premium-border); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-.secteur-card:active { background: var(--surface2); }
-.sc-left { display: flex; align-items: center; gap: 12px; }
-.sc-icon { font-size: 24px; }
-.sc-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-.sc-ville { font-size: 11px; color: var(--text3); }
-.sc-right { display: flex; align-items: center; gap: 12px; }
-.sc-stat { text-align: right; }
-.sc-num { font-size: 18px; font-weight: 700; color: var(--gold); display: block; }
-.sc-lbl { font-size: 10px; color: var(--text3); }
-.sc-arrow { font-size: 20px; color: var(--text3); }
-.copro-card { background: var(--surface); border: 0.5px solid var(--premium-border); border-radius: 14px; padding: 13px; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
-.copro-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
-.copro-info { flex: 1; }
-.copro-adresse { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
-.copro-notes { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
-.copro-stats { display: flex; gap: 6px; flex-wrap: wrap; }
-.proprio-card { background: var(--surface); border: 0.5px solid var(--premium-border); border-radius: 14px; padding: 13px; display: flex; align-items: center; gap: 12px; }
-.proprio-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-bg); color: var(--gold); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.proprio-info { flex: 1; }
-.proprio-nom { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-.proprio-meta { display: flex; gap: 5px; flex-wrap: wrap; }
-.btn-icon { font-size: 18px; text-decoration: none; }
-.prosp-tip { background: var(--gold-bg); border: 0.5px solid rgba(255,214,10,0.2); border-radius: 12px; padding: 12px 14px; margin-bottom: 6px; }
-.prio-card { background: var(--surface); border: 0.5px solid var(--premium-border); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
-.prio-rank { font-size: 20px; flex-shrink: 0; }
-.terrain-empty { text-align: center; padding: 40px 16px; color: var(--text2); }
+.terrain-view { padding-bottom: 120px; }
 
-/* Modals */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: flex-end; }
-.modal-sheet { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 12px; border-bottom: 0.5px solid var(--border); }
-.modal-title { font-size: 15px; font-weight: 700; }
-.modal-close { background: var(--surface2); border: 0; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; cursor: pointer; color: var(--text2); }
-.modal-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.modal-footer { padding: 12px 16px; border-top: 0.5px solid var(--border); display: flex; gap: 10px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-.field-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
-.field-input { width: 100%; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px; color: var(--text1); box-sizing: border-box; }
-.field-textarea { min-height: 72px; resize: none; font-family: inherit; }
+.chips-bar { display: flex; gap: 10px; padding: 0 20px 20px; }
+
+.terrain-list { padding: 0 4px; display: flex; flex-direction: column; gap: 4px; }
+
+.secteur-card { 
+  background: var(--surface); 
+  border: 1px solid var(--border); 
+  border-radius: 20px; 
+  padding: 20px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  cursor: pointer; 
+  margin: 0 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.secteur-card:active { transform: scale(0.98); background: var(--surface2); }
+.sc-left { display: flex; align-items: center; gap: 16px; }
+.sc-icon { font-size: 28px; }
+.sc-name { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 4px; }
+.sc-ville { font-size: 12px; color: var(--text3); font-weight: 500; }
+.sc-right { display: flex; align-items: center; gap: 16px; }
+.sc-stat { text-align: right; }
+.sc-num { font-size: 20px; font-weight: 800; color: var(--gold); display: block; font-family: var(--f-mono); letter-spacing: -0.02em; }
+.sc-lbl { font-size: 9px; color: var(--text3); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
+.sc-arrow { font-size: 20px; color: var(--text4); }
+
+.copro-card { 
+  background: var(--surface); 
+  border: 1px solid var(--border); 
+  border-radius: 20px; 
+  padding: 18px; 
+  display: flex; 
+  align-items: flex-start; 
+  gap: 14px; 
+  cursor: pointer; 
+  margin: 0 16px;
+  transition: all 0.2s;
+}
+.copro-card:active { background: var(--surface2); transform: scale(0.98); }
+.copro-icon { font-size: 26px; flex-shrink: 0; margin-top: 4px; }
+.copro-info { flex: 1; }
+.copro-adresse { font-size: 15px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.01em; }
+.copro-notes { font-size: 12px; color: var(--text3); margin-bottom: 12px; line-height: 1.5; }
+.copro-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.proprio-card { 
+  background: var(--surface); 
+  border: 1px solid var(--border); 
+  border-radius: 20px; 
+  padding: 16px 20px; 
+  display: flex; 
+  align-items: center; 
+  gap: 16px; 
+  margin: 0 16px;
+}
+.proprio-avatar { 
+  width: 44px; height: 44px; 
+  border-radius: 14px; 
+  background: var(--gold-bg); 
+  color: var(--gold); 
+  font-size: 14px; 
+  font-weight: 900; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  flex-shrink: 0;
+  border: 1px solid var(--premium-border);
+}
+.proprio-info { flex: 1; }
+.proprio-nom { font-size: 16px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.01em; }
+.proprio-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.btn-icon { 
+  width: 40px; height: 40px; 
+  border-radius: 12px; 
+  background: var(--green-bg); 
+  color: var(--green); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  text-decoration: none;
+  font-size: 18px;
+}
+
+.prosp-tip { 
+  background: var(--gold-bg); 
+  border: 1px solid var(--premium-border); 
+  border-radius: 20px; 
+  padding: 20px; 
+  margin: 0 16px 16px; 
+}
+
+.prio-card { 
+  background: var(--surface); 
+  border: 1px solid var(--border); 
+  border-radius: 20px; 
+  padding: 18px 20px; 
+  display: flex; 
+  align-items: center; 
+  gap: 16px; 
+  margin: 0 16px 8px;
+}
+.prio-rank { font-size: 24px; flex-shrink: 0; }
+
+.terrain-empty { 
+  text-align: center; 
+  padding: 64px 24px; 
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: 24px;
+  margin: 0 16px;
+}
+
+/* Modals Refined */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 3000; display: flex; align-items: flex-end; }
+.modal-sheet { background: var(--surface); border-radius: 32px 32px 0 0; width: 100%; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 24px 16px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+.modal-close { background: var(--surface3); border: 0; width: 36px; height: 36px; border-radius: 12px; font-size: 14px; cursor: pointer; color: var(--text2); display: flex; align-items: center; justify-content: center; }
+.modal-body { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.modal-footer { padding: 16px 24px calc(24px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); display: flex; gap: 12px; }
+
+.field-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; }
+.field-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; font-size: 15px; color: var(--text1); box-sizing: border-box; outline: none; transition: border-color 0.2s; }
+.field-input:focus { border-color: var(--gold); }
+.field-textarea { min-height: 80px; resize: none; font-family: inherit; }
 .field-select { appearance: none; }
+
 .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-seg { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 500; color: var(--text2); cursor: pointer; white-space: nowrap; }
-.btn-seg.active { background: var(--gold-bg); color: var(--gold); border-color: rgba(255,214,10,0.4); }
+.btn-seg { 
+  background: var(--surface2); 
+  border: 1px solid var(--border); 
+  border-radius: 12px; 
+  padding: 10px 14px; 
+  font-size: 12px; 
+  font-weight: 700; 
+  color: var(--text2); 
+  cursor: pointer; 
+  white-space: nowrap; 
+  transition: all 0.2s;
+}
+.btn-seg.active { background: var(--gold-bg); color: var(--gold); border-color: var(--gold); }
 </style>
