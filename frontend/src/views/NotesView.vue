@@ -1,145 +1,114 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useEraStore } from '../stores/era'
 
 const store = useEraStore()
-const quickNote = ref('')
-const activeFilter = ref('tous')
-const sheetOpen = ref(false)
-const sheetNote = ref<any>(null)
+const showModal = ref(false)
+const form = reactive({ titre: '', contenu: '', type: 'memo' })
 
-const CATS = [
-  { key: 'tous',    label: 'Toutes' },
-  { key: 'memo',    label: '📝 Mémo' },
-  { key: 'terrain', label: '🚶 Terrain' },
-  { key: 'client',  label: '👤 Client' },
-  { key: 'marche',  label: '📊 Marché' },
-]
-
-const CAT_COLORS: Record<string, string> = {
-  memo:    'b-blue',
-  terrain: 'b-green',
-  client:  'b-orange',
-  marche:  'b-purple',
+function submitNote() {
+  if (!form.titre || !form.contenu) return
+  store.addNote(form.titre, form.contenu, form.type)
+  showModal.value = false
+  Object.assign(form, { titre: '', contenu: '', type: 'memo' })
 }
 
-const filtered = computed(() => {
-  if (activeFilter.value === 'tous') return store.notes
-  return store.notes.filter(n => n.type === activeFilter.value)
-})
+function truncate(s: string, len: number) {
+  if (s.length <= len) return s
+  return s.slice(0, len) + '...'
+}
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
-function submit() {
-  if (!quickNote.value.trim()) return
-  store.addNote(quickNote.value.trim())
-  store.toast('Note enregistrée ✓')
-  quickNote.value = ''
+const types: Record<string, string> = {
+  memo: '📝 Memo',
+  terrain: '🗺️ Terrain',
+  recherche: '👥 Acquéreur',
+  important: '🔥 Important'
 }
-
-function deleteNote(id: string) {
-  store.notes.splice(store.notes.findIndex(n => n.id === id), 1)
-  store.saveAll()
-  store.toast('Note supprimée')
-  closeSheet()
-}
-
-function openSheet(n: any) { sheetNote.value = n; sheetOpen.value = true }
-function closeSheet() { sheetOpen.value = false; sheetNote.value = null }
 </script>
 
 <template>
   <section class="panel on notes-view">
-
     <div class="sh">
       <div>
         <div class="stitle">📝 Notes</div>
-        <div class="ssub">Mémos terrain, observations, idées</div>
+        <div class="ssub">Vos mémos et rapports de pige</div>
       </div>
+      <button class="btn btn-gold" @click="showModal = true">+ Nouvelle</button>
     </div>
 
-    <!-- Quick add -->
-    <div class="quick-add">
-      <input v-model="quickNote" class="quick-input" placeholder="Ajouter une note rapide..." @keyup.enter="submit" />
-      <button class="btn btn-gold" @click="submit">+</button>
-    </div>
-
-    <!-- Filtres -->
-    <div class="chips-bar">
-      <button v-for="c in CATS" :key="c.key" class="chip" :class="{ active: activeFilter === c.key }" @click="activeFilter = c.key">
-        {{ c.label }}
-        <span v-if="c.key !== 'tous'" class="chip-count">{{ store.notes.filter(n => n.type === c.key).length }}</span>
-      </button>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats" style="margin-bottom:8px">
-      <div class="sc"><div class="sv">{{ store.notes.length }}</div><div class="sl">Total</div></div>
-      <div class="sc"><div class="sv" style="color:var(--blue)">{{ store.notes.filter(n=>n.type==='memo').length }}</div><div class="sl">Mémos</div></div>
-      <div class="sc"><div class="sv" style="color:var(--green)">{{ store.notes.filter(n=>n.type==='terrain').length }}</div><div class="sl">Terrain</div></div>
-      <div class="sc"><div class="sv" style="color:var(--orange)">{{ store.notes.filter(n=>n.type==='client').length }}</div><div class="sl">Clients</div></div>
-    </div>
-
-    <!-- Notes -->
-    <div class="notes-list">
-      <div v-if="!filtered.length" class="notes-empty">
-        <div style="font-size:28px;margin-bottom:8px">📝</div>
-        <div style="font-weight:600;margin-bottom:4px">Aucune note</div>
-        <div style="font-size:12px;color:var(--text3)">Tapez ci-dessus pour en créer une</div>
-      </div>
-
-      <div v-for="n in filtered" :key="n.id" class="note-card" @click="openSheet(n)">
+    <div class="notes-grid">
+      <div v-for="n in store.notes" :key="n.id" class="note-card">
         <div class="note-top">
-          <div class="note-titre">{{ n.titre }}</div>
-          <span class="badge" :class="CAT_COLORS[n.type] || 'b-gray'" style="font-size:9px">{{ n.type }}</span>
+          <span class="note-type">{{ types[n.type] || '📝 Note' }}</span>
+          <span class="note-date">{{ fmtDate(n.date) }}</span>
         </div>
-        <div v-if="n.contenu" class="note-body">{{ n.contenu.slice(0, 120) }}{{ n.contenu.length > 120 ? '…' : '' }}</div>
-        <div class="note-date">{{ fmtDate(n.date) }}</div>
+        <div class="note-title">{{ n.titre || 'Sans titre' }}</div>
+        <div class="note-body">{{ truncate(n.contenu, 140) }}</div>
+      </div>
+      
+      <div v-if="!store.notes.length" class="empty-state">
+        <div class="empty-ico">📝</div>
+        <div class="empty-txt">Aucune note pour le moment.</div>
       </div>
     </div>
 
-    <!-- Sheet détail note -->
-    <div v-if="sheetOpen" class="sheet-overlay" @click="closeSheet"></div>
-    <div class="status-sheet" :class="{ open: sheetOpen }">
-      <div class="sheet-handle"></div>
-      <div v-if="sheetNote" style="padding:0 4px">
-        <div class="sheet-title-note">{{ sheetNote.titre }}</div>
-        <div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:14px">{{ fmtDate(sheetNote.date) }}</div>
-        <div v-if="sheetNote.contenu" style="font-size:13px;color:var(--text2);line-height:1.7;background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:14px;white-space:pre-wrap">{{ sheetNote.contenu }}</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="sheet-opt" style="color:var(--red)" @click="deleteNote(sheetNote.id)">🗑️ Supprimer cette note</button>
+    <!-- Modal Nouvelle Note -->
+    <Teleport to="body">
+      <div v-if="showModal" class="sheet-overlay" @click.self="showModal = false">
+        <div class="status-sheet open" style="max-height: 80vh">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">📝 Nouvelle Note</div>
+          
+          <div class="form-grid">
+            <input v-model="form.titre" class="field-input" placeholder="Titre de la note" style="font-weight: 700" />
+            
+            <select v-model="form.type" class="field-input">
+              <option value="memo">📝 Memo personnel</option>
+              <option value="terrain">🗺️ Rapport terrain</option>
+              <option value="recherche">👥 Recherche acquéreur</option>
+              <option value="important">🔥 Important / Urgent</option>
+            </select>
+            
+            <textarea v-model="form.contenu" class="field-input field-textarea" placeholder="Contenu de la note..." rows="6"></textarea>
+          </div>
+          
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button class="sheet-cancel" style="margin-top:0;flex:1" @click="showModal = false">Annuler</button>
+            <button class="sheet-cancel" style="margin-top:0;flex:2;background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold)" @click="submitNote">Sauvegarder</button>
+          </div>
         </div>
       </div>
-      <button class="sheet-cancel" @click="closeSheet">Fermer</button>
-    </div>
-
+    </Teleport>
   </section>
 </template>
 
 <style scoped>
-.notes-view { padding-bottom: 90px; }
-.quick-add { display: flex; gap: 8px; padding: 0 16px 12px; }
-.quick-input { flex: 1; background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-size: 13px; outline: none; }
-.chips-bar { display: flex; gap: 7px; padding: 0 16px 12px; overflow-x: auto; scrollbar-width: none; }
-.chips-bar::-webkit-scrollbar { display: none; }
-.chip { background: var(--surface); border: 0.5px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
-.chip.active { background: var(--gold-bg); color: var(--gold); border-color: rgba(255,214,10,0.3); }
-.chip-count { background: var(--surface2); border-radius: 8px; padding: 1px 6px; font-size: 10px; color: var(--text3); }
-.notes-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
-.notes-empty { text-align: center; padding: 36px 16px; color: var(--text2); }
-.note-card { background: var(--surface); border: 0.5px solid var(--premium-border); border-radius: 12px; padding: 12px 14px; cursor: pointer; }
-.note-card:active { background: var(--surface2); }
-.note-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
-.note-titre { font-size: 13px; font-weight: 600; flex: 1; }
-.note-body { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
-.note-date { font-size: 10px; color: var(--text3); }
-.sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
-.status-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-radius: 20px 20px 0 0; border-top: 0.5px solid var(--border2); padding: 12px 16px 34px; z-index: 201; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
-.status-sheet.open { transform: translateY(0); }
-.sheet-handle { width: 36px; height: 4px; background: var(--surface3); border-radius: 2px; margin: 0 auto 14px; }
-.sheet-title-note { font-size: 15px; font-weight: 600; text-align: center; margin-bottom: 4px; }
-.sheet-opt { display: flex; align-items: center; gap: 10px; padding: 13px; border-radius: 12px; background: var(--surface2); border: 0.5px solid var(--border); font-size: 14px; cursor: pointer; width: 100%; }
-.sheet-cancel { width: 100%; margin-top: 8px; padding: 13px; border-radius: 12px; background: var(--surface2); border: none; font-size: 14px; font-weight: 500; color: var(--text2); cursor: pointer; }
+.notes-view { padding-bottom: 120px; }
+.notes-grid { padding: 4px 20px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.note-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.note-card:active { transform: scale(0.97); background: var(--surface2); }
+
+.note-top { display: flex; justify-content: space-between; align-items: center; }
+.note-type { font-size: 9px; font-weight: 800; color: var(--gold); background: var(--gold-bg); padding: 4px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.note-date { font-size: 10px; color: var(--text3); font-weight: 700; font-family: var(--f-mono); }
+.note-title { font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -0.01em; }
+.note-body { font-size: 13px; color: var(--text2); line-height: 1.5; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+.empty-state { grid-column: span 2; }
 </style>
