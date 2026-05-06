@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useEraStore } from '../stores/era'
-import { scoreMatch } from '../composables/useMatching'
+// import { scoreMatch } from './composables/useMatching'
+
+import { scoreMatch } from './composables/useMatching'
+
 import type { Acquereur } from '../types/domain'
 
 const store = useEraStore()
@@ -12,6 +15,27 @@ const showProspects = ref(false)
 const sheetOpen = ref(false)
 const sheetTarget = ref<Acquereur | null>(null)
 const swipedId = ref<string | null>(null)
+const showModalNewAcq = ref(false)
+const matchSheetOpen = ref(false)
+const matchTarget = ref<Acquereur | null>(null)
+
+const formAcq = reactive({ nom: '', tel: '', email: '', budget: '', secteur: '', notes: '', source: 'terrain' })
+
+function submitAcq() {
+  if (!formAcq.nom) return
+  store.addAcquereur({
+    nom: formAcq.nom,
+    tel: formAcq.tel,
+    email: formAcq.email,
+    budget: formAcq.budget || undefined,
+    secteur: formAcq.secteur,
+    notes: formAcq.notes,
+    statut: 'qualifie',
+    dateAjout: new Date().toISOString().slice(0, 10),
+  })
+  showModalNewAcq.value = false
+  Object.assign(formAcq, { nom: '', tel: '', email: '', budget: '', secteur: '', notes: '', source: 'terrain' })
+}
 
 const STATUTS = [
   { key: 'prospect',  label: 'Prospect',            icon: '👋' },
@@ -45,9 +69,30 @@ function daysSinceContact(a: Acquereur): number {
   return Math.floor((Date.now() - new Date(lc).getTime()) / 86400000)
 }
 
-function matchedMandats(a: Acquereur): number {
+function callAcq(a: Acquereur) {
+  const tel = (a as any).tel
+  if (tel) { store.markLastContact('acquereur', a.id); window.location.href = `tel:${tel}` }
+}
+
+function waAcq(a: Acquereur) {
+  const tel = (a as any).tel
+  if (tel) { store.markLastContact('acquereur', a.id); window.open(`https://wa.me/${String(tel).replace(/\D/g, '')}`) }
+}
+
+function matchedMandatsCount(a: Acquereur): number {
   return store.mandats.filter(m => scoreMatch(a, m) > 35).length
 }
+
+function matchedMandatsList(a: Acquereur) {
+  return store.mandats
+    .filter(m => !['expire', 'retire', 'acte'].includes(m.statut))
+    .map(m => ({ m, score: scoreMatch(a, m) }))
+    .filter(x => x.score >= 35)
+    .sort((a, b) => b.score - a.score)
+}
+
+function openMatchSheet(a: Acquereur) { matchTarget.value = a; matchSheetOpen.value = true; swipedId.value = null }
+function closeMatchSheet() { matchSheetOpen.value = false; matchTarget.value = null }
 
 function initials(nom: string): string {
   return nom.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -61,16 +106,6 @@ function avatarClass(a: Acquereur): string {
 
 function statutLabel(key: string): string {
   return STATUTS.find(s => s.key === key)?.label || key
-}
-
-function callAcq(a: Acquereur) {
-  const tel = (a as any).tel
-  if (tel) window.location.href = `tel:${tel}`
-}
-
-function waAcq(a: Acquereur) {
-  const tel = (a as any).tel
-  if (tel) window.open(`https://wa.me/${String(tel).replace(/\D/g, '')}`)
 }
 
 const toRelance = computed(() =>
@@ -129,17 +164,22 @@ function toggleSwipe(id: string) {
         <div class="stitle">👥 Acquéreurs</div>
         <div class="ssub">Qualification et matching avec vos mandats</div>
       </div>
-      <button class="btn btn-gold">+ Ajouter</button>
+      <button class="btn btn-gold" @click="showModalNewAcq = true">+ Ajouter</button>
     </div>
 
     <div class="stats">
       <div class="sc"><div class="sv">{{ store.acquereurs.length }}</div><div class="sl">Total</div></div>
-      <div class="sc"><div class="sv" style="color:var(--red)">{{ store.acquereurs.filter(a => ['qualifie','offre'].includes(a.statut)).length }}</div><div class="sl">Chauds</div></div>
-      <div class="sc"><div class="sv" style="color:var(--orange)">{{ store.acquereurs.filter(a => a.statut === 'actif').length }}</div><div class="sl">Actifs</div></div>
+      <div class="sc"><div class="sv" style="color:var(--red)">{{ store.chaudAcq.length }}</div><div class="sl">Chauds</div></div>
+      <div class="sc"><div class="sv" style="color:var(--orange)">{{ store.activeAcq.length }}</div><div class="sl">Actifs</div></div>
       <div class="sc"><div class="sv" style="color:var(--text3)">{{ store.acquereurs.filter(a => ['prospect','inactif'].includes(a.statut)).length }}</div><div class="sl">Prospects</div></div>
     </div>
 
-    <div class="srch"><input v-model="query" placeholder="Rechercher un acquéreur..." /></div>
+    <div class="srch">
+      <div class="srch-inner">
+        <span class="srch-ico">🔍</span>
+        <input v-model="query" placeholder="Rechercher un acquéreur..." />
+      </div>
+    </div>
 
     <div class="chips-bar">
       <button
@@ -151,19 +191,20 @@ function toggleSwipe(id: string) {
     </div>
 
     <div v-if="toRelance.length" class="relance-banner">
-      <div class="relance-title">⏰ À relancer aujourd'hui</div>
+      <div class="relance-title">À relancer aujourd'hui</div>
       <div v-for="a in toRelance.slice(0, 3)" :key="a.id" class="relance-row">
         <span class="relance-name">{{ a.nom }}</span>
         <span class="relance-days">+{{ daysSinceContact(a) }}j</span>
-        <button class="relance-call" @click="callAcq(a)">📞 Appeler</button>
+        <button class="relance-call" @click="callAcq(a)">📞 Rappeler</button>
       </div>
     </div>
 
     <!-- CHAUDS -->
     <template v-if="chauds.length">
-      <div class="sh" style="margin-top:4px">
-        <div class="stitle" style="font-size:14px">🔥 Chauds</div>
-        <span class="count-badge">{{ chauds.length }}</span>
+      <div class="m-section-header">
+        <div class="m-section-dot" style="background:var(--red);box-shadow: 0 0 8px var(--red);" />
+        <span class="m-section-title">Chauds</span>
+        <span class="count-badge" style="margin-left:8px">{{ chauds.length }}</span>
       </div>
       <div class="acq-list">
         <div v-for="a in chauds" :key="a.id" class="card-outer">
@@ -173,7 +214,7 @@ function toggleSwipe(id: string) {
             <button class="swa swa-status" @click="openSheet(a)">✏️<span>Statut</span></button>
           </div>
           <div class="card" :class="{ swiped: swipedId === a.id }" @click="toggleSwipe(a.id)">
-            <div v-if="daysSinceContact(a) >= 7" class="alert-bar">⚠️ Sans contact depuis {{ daysSinceContact(a) }}j</div>
+            <div v-if="daysSinceContact(a) >= 7" class="alert-bar">Sans contact depuis {{ daysSinceContact(a) }}j</div>
             <div class="card-top">
               <div class="avatar" :class="avatarClass(a)">{{ initials(a.nom) }}</div>
               <div class="card-info">
@@ -181,27 +222,29 @@ function toggleSwipe(id: string) {
                 <div class="card-sub">{{ a.secteur || '—' }} · {{ a.profil || '—' }}</div>
               </div>
               <span class="badge" :class="BADGE[a.statut] || 'b-gray'" @click.stop="openSheet(a)">
-                {{ statutLabel(a.statut) }} 〉
+                {{ statutLabel(a.statut) }}
               </span>
             </div>
             <div class="card-rows">
-              <div class="row"><span class="lbl">Budget</span><span class="val">{{ a.budget ? Number(a.budget).toLocaleString('fr-FR') + ' €' : '—' }}</span></div>
-              <div class="row"><span class="lbl">Recherche</span><span class="val">{{ a.type || '—' }}</span></div>
-              <div class="row">
-                <span class="lbl">Matching</span>
-                <span class="val match-val">
+              <div class="card-row"><span class="card-lbl">Budget</span><span class="card-val" style="font-family:var(--f-mono)">{{ a.budget ? Number(a.budget).toLocaleString('fr-FR') + ' €' : '—' }}</span></div>
+              <div class="card-row"><span class="card-lbl">Recherche</span><span class="card-val">{{ a.type || '—' }}</span></div>
+              <div class="card-row" style="cursor:pointer" @click.stop="openMatchSheet(a)">
+                <span class="card-lbl">Matching</span>
+                <span class="card-val match-val">
                   <span class="dots">
-                    <span v-for="i in 5" :key="i" class="dot" :class="i <= Math.min(matchedMandats(a), 5) ? 'dot-on' : 'dot-off'"></span>
+                    <span v-for="i in 5" :key="i" class="dot" :class="i <= Math.min(matchedMandatsCount(a), 5) ? 'dot-on' : 'dot-off'"></span>
                   </span>
-                  {{ matchedMandats(a) }} mandat{{ matchedMandats(a) > 1 ? 's' : '' }}
+                  <span style="font-family:var(--f-mono)">{{ matchedMandatsCount(a) }}</span> mandat{{ matchedMandatsCount(a) > 1 ? 's' : '' }}
                 </span>
               </div>
             </div>
-            <div class="card-actions">
-              <button class="act-btn" @click.stop="callAcq(a)">📞 Appel</button>
-              <button class="act-btn" @click.stop="waAcq(a)">💬 WA</button>
-              <button class="act-btn" @click.stop>🎯 Match</button>
-              <button class="act-btn" @click.stop>📝 Note</button>
+            <div class="card-ft">
+              <div class="acq-act-row" style="width:100%;justify-content:space-between">
+                <button class="acq-ico ai-call" @click.stop="callAcq(a)">📞</button>
+                <button class="acq-ico ai-wa" @click.stop="waAcq(a)">💬</button>
+                <button class="acq-ico ai-match" @click.stop="openMatchSheet(a)">🎯</button>
+                <button class="acq-ico ai-note" @click.stop>📝</button>
+              </div>
             </div>
           </div>
         </div>
@@ -210,9 +253,10 @@ function toggleSwipe(id: string) {
 
     <!-- ACTIFS -->
     <template v-if="actifs.length">
-      <div class="sh" style="margin-top:14px">
-        <div class="stitle" style="font-size:14px">🟡 Actifs</div>
-        <span class="count-badge">{{ actifs.length }}</span>
+      <div class="m-section-header" style="margin-top:24px">
+        <div class="m-section-dot" style="background:var(--orange);box-shadow: 0 0 8px var(--orange);" />
+        <span class="m-section-title">Actifs</span>
+        <span class="count-badge" style="margin-left:8px">{{ actifs.length }}</span>
       </div>
       <div class="acq-list">
         <div v-for="a in actifs" :key="a.id" class="card-outer">
@@ -222,33 +266,35 @@ function toggleSwipe(id: string) {
             <button class="swa swa-status" @click="openSheet(a)">✏️<span>Statut</span></button>
           </div>
           <div class="card" :class="{ swiped: swipedId === a.id }" @click="toggleSwipe(a.id)">
-            <div v-if="daysSinceContact(a) >= 7" class="alert-bar">⚠️ Sans contact depuis {{ daysSinceContact(a) }}j</div>
+            <div v-if="daysSinceContact(a) >= 7" class="alert-bar">Sans contact depuis {{ daysSinceContact(a) }}j</div>
             <div class="card-top">
               <div class="avatar av-blue">{{ initials(a.nom) }}</div>
               <div class="card-info">
                 <div class="card-name">{{ a.nom }}</div>
                 <div class="card-sub">{{ a.secteur || '—' }} · {{ a.profil || '—' }}</div>
               </div>
-              <span class="badge b-blue" @click.stop="openSheet(a)">{{ statutLabel(a.statut) }} 〉</span>
+              <span class="badge b-blue" @click.stop="openSheet(a)">{{ statutLabel(a.statut) }}</span>
             </div>
             <div class="card-rows">
-              <div class="row"><span class="lbl">Budget</span><span class="val">{{ a.budget ? Number(a.budget).toLocaleString('fr-FR') + ' €' : '—' }}</span></div>
-              <div class="row"><span class="lbl">Recherche</span><span class="val">{{ a.type || '—' }}</span></div>
-              <div class="row">
-                <span class="lbl">Matching</span>
-                <span class="val match-val">
+              <div class="card-row"><span class="card-lbl">Budget</span><span class="card-val" style="font-family:var(--f-mono)">{{ a.budget ? Number(a.budget).toLocaleString('fr-FR') + ' €' : '—' }}</span></div>
+              <div class="card-row"><span class="card-lbl">Recherche</span><span class="card-val">{{ a.type || '—' }}</span></div>
+              <div class="card-row" style="cursor:pointer" @click.stop="openMatchSheet(a)">
+                <span class="card-lbl">Matching</span>
+                <span class="card-val match-val">
                   <span class="dots">
-                    <span v-for="i in 5" :key="i" class="dot" :class="i <= Math.min(matchedMandats(a), 5) ? 'dot-on' : 'dot-off'"></span>
+                    <span v-for="i in 5" :key="i" class="dot" :class="i <= Math.min(matchedMandatsCount(a), 5) ? 'dot-on' : 'dot-off'"></span>
                   </span>
-                  {{ matchedMandats(a) }} mandat{{ matchedMandats(a) > 1 ? 's' : '' }}
+                  <span style="font-family:var(--f-mono)">{{ matchedMandatsCount(a) }}</span> mandat{{ matchedMandatsCount(a) > 1 ? 's' : '' }}
                 </span>
               </div>
             </div>
-            <div class="card-actions">
-              <button class="act-btn" @click.stop="callAcq(a)">📞 Appel</button>
-              <button class="act-btn" @click.stop="waAcq(a)">💬 WA</button>
-              <button class="act-btn" @click.stop>🎯 Match</button>
-              <button class="act-btn" @click.stop>📝 Note</button>
+            <div class="card-ft">
+              <div class="acq-act-row" style="width:100%;justify-content:space-between">
+                <button class="acq-ico ai-call" @click.stop="callAcq(a)">📞</button>
+                <button class="acq-ico ai-wa" @click.stop="waAcq(a)">💬</button>
+                <button class="acq-ico ai-match" @click.stop="openMatchSheet(a)">🎯</button>
+                <button class="acq-ico ai-note" @click.stop>📝</button>
+              </div>
             </div>
           </div>
         </div>
@@ -257,9 +303,11 @@ function toggleSwipe(id: string) {
 
     <!-- PROSPECTS -->
     <template v-if="prospects.length">
-      <div class="sh" style="margin-top:14px;cursor:pointer" @click="showProspects = !showProspects">
-        <div class="stitle" style="font-size:14px">🔵 Prospects</div>
-        <span class="count-badge">{{ prospects.length }} {{ showProspects ? '↑' : '↓' }}</span>
+      <div class="m-section-header" style="margin-top:24px;cursor:pointer" @click="showProspects = !showProspects">
+        <div class="m-section-dot" style="background:var(--text3);box-shadow:none" />
+        <span class="m-section-title">Prospects</span>
+        <span class="count-badge" style="margin-left:8px">{{ prospects.length }}</span>
+        <span class="ssub" style="margin-left:auto">{{ showProspects ? 'Réduire ↑' : 'Développer ↓' }}</span>
       </div>
       <template v-if="showProspects">
         <div class="acq-list">
@@ -276,16 +324,17 @@ function toggleSwipe(id: string) {
                   <div class="card-name">{{ a.nom }}</div>
                   <div class="card-sub">{{ a.secteur || '—' }} · {{ a.profil || '—' }}</div>
                 </div>
-                <span class="badge b-gray" @click.stop="openSheet(a)">{{ statutLabel(a.statut) }} 〉</span>
+                <span class="badge b-gray" @click.stop="openSheet(a)">{{ statutLabel(a.statut) }}</span>
               </div>
               <div class="card-rows">
-                <div class="row"><span class="lbl">Budget</span><span class="val">{{ a.budget ? Number(a.budget).toLocaleString('fr-FR') + ' €' : '—' }}</span></div>
-                <div class="row"><span class="lbl">Recherche</span><span class="val">{{ a.type || '—' }}</span></div>
+                <div class="card-row"><span class="card-lbl">Budget</span><span class="card-val" style="font-family:var(--f-mono)">{{ a.budget ? Number(a.budget).toLocaleString('fr-FR') + ' €' : '—' }}</span></div>
+                <div class="card-row"><span class="card-lbl">Recherche</span><span class="card-val">{{ a.type || '—' }}</span></div>
               </div>
-              <div class="card-actions">
-                <button class="act-btn" @click.stop="callAcq(a)">📞 Appel</button>
-                <button class="act-btn" @click.stop="waAcq(a)">💬 WA</button>
-                <button class="act-btn" @click.stop>📝 Note</button>
+              <div class="card-ft">
+                <div class="acq-act-row" style="width:100%;justify-content:space-between">
+                  <button class="acq-ico ai-call" @click.stop="callAcq(a)">📞</button>
+                  <button class="acq-ico ai-note" @click.stop>📝</button>
+                </div>
               </div>
             </div>
           </div>
@@ -316,68 +365,193 @@ function toggleSwipe(id: string) {
       <button class="sheet-cancel" @click="closeSheet">Annuler</button>
     </div>
 
+    <!-- Sheet matching pour Acquéreurs -->
+    <div v-if="matchSheetOpen" class="sheet-overlay" @click="closeMatchSheet"></div>
+    <div class="status-sheet" :class="{ open: matchSheetOpen }" style="max-height:70vh;overflow-y:auto">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">🏠 Mandats compatibles</div>
+      <div v-if="matchTarget" style="padding:0 4px">
+        <div v-if="!matchedMandatsList(matchTarget).length" style="text-align:center;padding:24px;color:var(--text3);font-size:13px">
+          Aucun mandat en cours correspondant
+        </div>
+        <div v-for="entry in matchedMandatsList(matchTarget)" :key="entry.m.id" class="sheet-opt" style="margin-bottom:8px">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600">{{ entry.m.adresse.split(',')[0] }}</div>
+            <div style="font-size:11px;color:var(--text3)">
+               {{ entry.m.type || 'Bien' }} {{ entry.m.surface ? '· ' + entry.m.surface + 'm²' : '' }} · {{ entry.m.fai ? Number(entry.m.fai).toLocaleString('fr-FR') + ' €' : (entry.m.prix ? Number(entry.m.prix).toLocaleString('fr-FR') + ' € (net)' : '—') }}
+            </div>
+          </div>
+          <span class="badge b-green">Score {{ entry.score }}</span>
+        </div>
+      </div>
+      <button class="sheet-cancel" @click="closeMatchSheet">Fermer</button>
+    </div>
+
+    <!-- Modal Nouvel Acquéreur -->
+    <Teleport to="body">
+      <div v-if="showModalNewAcq" class="sheet-overlay" @click.self="showModalNewAcq = false" style="display:flex;align-items:flex-end;z-index:200;">
+        <div class="status-sheet" :class="{ open: showModalNewAcq }" style="position:relative;max-height:85vh;overflow-y:auto;width:100%;">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">👥 Nouvel Acquéreur</div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:12px">
+            <div>
+              <label style="font-size:11px;color:var(--text2);margin-bottom:4px;display:block">Nom / Prénom *</label>
+              <input v-model="formAcq.nom" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text)" placeholder="ex: Jean Dupont" />
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:11px;color:var(--text2);margin-bottom:4px;display:block">Téléphone</label>
+                <input v-model="formAcq.tel" type="tel" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text)" placeholder="06 xx xx xx xx" />
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text2);margin-bottom:4px;display:block">Budget max</label>
+                <input v-model="formAcq.budget" type="number" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text)" placeholder="€" />
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:11px;color:var(--text2);margin-bottom:4px;display:block">Secteurs recherchés</label>
+              <input v-model="formAcq.secteur" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text)" placeholder="ex: Centre-ville, T3 minimum..." />
+            </div>
+
+            <div>
+              <label style="font-size:11px;color:var(--text2);margin-bottom:4px;display:block">Notes & Critères</label>
+              <textarea v-model="formAcq.notes" rows="3" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text)" placeholder="Financement validé ? Critères stricts ?"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px">
+            <button class="sheet-cancel" style="margin-top:0;flex:1" @click="showModalNewAcq = false">Annuler</button>
+            <button class="sheet-cancel" style="margin-top:0;flex:2;background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold)" @click="submitAcq">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </section>
 </template>
 
 <style scoped>
-.acq-view { padding-bottom: 90px; }
-.chips-bar { display:flex;gap:7px;padding:0 16px 14px;overflow-x:auto;scrollbar-width:none }
-.chips-bar::-webkit-scrollbar { display:none }
-.chip { background:var(--surface);border:0.5px solid var(--border);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .2s }
-.chip.active { background:var(--gold-bg);color:var(--gold);border-color:rgba(255,214,10,0.3) }
-.chip.chip-alert { color:var(--red);border-color:rgba(255,69,58,0.25) }
-.chip.chip-alert.active { background:var(--red-bg) }
-.count-badge { font-size:11px;background:var(--surface2);color:var(--text3);border-radius:8px;padding:2px 8px }
-.relance-banner { margin:0 16px 14px;background:var(--orange-bg);border:0.5px solid rgba(255,159,10,0.25);border-radius:12px;padding:11px 14px }
-.relance-title { font-size:12px;font-weight:600;color:var(--orange);margin-bottom:8px }
-.relance-row { display:flex;justify-content:space-between;align-items:center;padding:4px 0 }
-.relance-name { font-size:12px;flex:1 }
-.relance-days { font-size:11px;color:var(--red);font-weight:600;margin-right:10px }
-.relance-call { font-size:11px;color:var(--blue);background:var(--blue-bg);border:none;border-radius:7px;padding:4px 9px;cursor:pointer }
-.acq-list { padding:0 16px;display:flex;flex-direction:column;gap:9px;margin-bottom:4px }
-.card-outer { position:relative;border-radius:14px;overflow:hidden }
-.swipe-actions { position:absolute;right:0;top:0;bottom:0;width:120px;display:flex }
-.swa { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:18px;font-weight:500;border:none;cursor:pointer }
-.swa span { font-size:10px }
-.swa-call { background:var(--green);color:#fff }
-.swa-wa { background:#25d366;color:#fff }
-.swa-status { background:var(--blue);color:#fff }
-.card { background:var(--surface);border-radius:14px;border:0.5px solid var(--premium-border);padding:13px;transition:transform .25s;cursor:pointer;position:relative;z-index:1 }
-.card.swiped { transform:translateX(-120px);border-radius:14px 0 0 14px }
-.alert-bar { font-size:10px;font-weight:600;color:var(--red);background:var(--red-bg);border-radius:6px;padding:3px 8px;margin-bottom:9px;display:inline-block }
-.card-top { display:flex;align-items:flex-start;gap:10px;margin-bottom:10px }
-.avatar { width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0 }
-.av-red { background:var(--red-bg);color:var(--red) }
-.av-blue { background:var(--blue-bg);color:var(--blue) }
-.av-gray { background:var(--surface2);color:var(--text3) }
-.card-info { flex:1 }
-.card-name { font-size:14px;font-weight:600;margin-bottom:2px }
-.card-sub { font-size:11px;color:var(--text3) }
-.badge { border-radius:7px;padding:3px 9px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;border:none }
-.b-red { background:var(--red-bg);color:var(--red) }
-.b-orange { background:var(--orange-bg);color:var(--orange) }
-.b-blue { background:var(--blue-bg);color:var(--blue) }
-.b-green { background:var(--green-bg);color:var(--green) }
-.b-gray { background:var(--surface2);color:var(--text3) }
-.card-rows { border-top:0.5px solid var(--border);padding-top:9px;display:flex;flex-direction:column;gap:5px }
-.row { display:flex;justify-content:space-between;font-size:12px }
-.lbl { color:var(--text3) }
-.val { font-weight:500 }
-.match-val { display:flex;align-items:center;gap:6px }
-.dots { display:flex;gap:3px }
-.dot { width:7px;height:7px;border-radius:50% }
-.dot-on { background:var(--green) }
-.dot-off { background:var(--surface3) }
-.card-actions { display:flex;gap:7px;margin-top:10px }
-.act-btn { flex:1;background:var(--premium-surface);border:0.5px solid var(--border);border-radius:9px;padding:7px 0;font-size:11px;color:var(--text2);cursor:pointer }
-.prospects-toggle { margin:0 16px 16px;background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:13px;text-align:center;font-size:13px;color:var(--text2);cursor:pointer }
-.sheet-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200 }
-.status-sheet { position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;border-top:0.5px solid var(--border2);padding:12px 16px 34px;z-index:201;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1) }
-.status-sheet.open { transform:translateY(0) }
-.sheet-handle { width:36px;height:4px;background:var(--surface3);border-radius:2px;margin:0 auto 14px }
-.sheet-title { font-size:13px;color:var(--text2);text-align:center;margin-bottom:14px }
-.sheet-options { display:flex;flex-direction:column;gap:8px }
-.sheet-opt { display:flex;align-items:center;gap:10px;padding:13px;border-radius:12px;background:var(--surface2);border:0.5px solid var(--border);font-size:14px;cursor:pointer;color:var(--text) }
-.sheet-opt-active { border-color:var(--gold) }
-.sheet-cancel { width:100%;margin-top:8px;padding:13px;border-radius:12px;background:var(--surface2);border:none;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer }
+.acq-view { padding-bottom: 120px; }
+
+.acq-list { padding: 4px 4px 0; display: flex; flex-direction: column; gap: 4px; }
+
+.m-section-header {
+  padding: 16px 20px 8px;
+  display: flex;
+  align-items: center;
+}
+
+.m-section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.m-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text2);
+}
+
+.relance-banner { 
+  margin: 0 20px 20px; 
+  background: var(--surface2); 
+  border: 1px solid var(--border); 
+  border-radius: 20px; 
+  padding: 20px; 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.relance-title { font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
+.relance-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.relance-row:last-child { border: none; }
+.relance-name { font-size: 15px; font-weight: 800; flex: 1; letter-spacing: -0.01em; }
+.relance-days { font-size: 11px; color: var(--red); font-weight: 800; margin-right: 12px; font-family: var(--f-mono); }
+.relance-call { font-size: 10px; font-weight: 800; color: var(--blue); background: var(--blue-bg); border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; text-transform: uppercase; }
+
+.count-badge { font-size: 11px; background: var(--surface2); color: var(--text3); border-radius: 10px; padding: 4px 10px; font-weight: 800; font-family: var(--f-mono); border: 1px solid var(--border); }
+
+.alert-bar { 
+  font-size: 9px; 
+  font-weight: 900; 
+  color: var(--red); 
+  background: var(--red-bg); 
+  border-radius: 8px; 
+  padding: 6px 12px; 
+  margin-bottom: 20px; 
+  display: inline-flex; 
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  gap: 6px;
+}
+.alert-bar::before { content: "⚠️"; }
+
+.avatar { 
+  width: 44px; height: 44px; 
+  border-radius: 14px; 
+  display: flex; align-items: center; justify-content: center; 
+  font-size: 13px; font-weight: 900; flex-shrink: 0; 
+  border: 1px solid var(--border);
+}
+.av-red { background: var(--red-bg); color: var(--red); border-color: rgba(255,69,58,0.2); }
+.av-blue { background: var(--blue-bg); color: var(--blue); border-color: rgba(10,132,255,0.2); }
+.av-gray { background: var(--surface2); color: var(--text3); }
+
+.card-info { flex: 1; margin-left: 16px; }
+.card-name { font-size: 17px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.02em; }
+.card-sub { font-size: 13px; color: var(--text3); font-weight: 500; }
+
+.match-val { display: flex; align-items: center; gap: 10px; }
+.dots { display: flex; gap: 4px; }
+.dot { width: 4px; height: 4px; border-radius: 50%; }
+.dot-on { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.dot-off { background: var(--surface3); }
+
+.card-ft { 
+  margin-top: 16px; 
+  padding-top: 16px; 
+  border-top: 1px solid var(--border); 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+}
+
+.acq-act-row { display: flex; gap: 8px; align-items: center; }
+.acq-ico { 
+  width: 40px; height: 40px; border-radius: 12px; 
+  background: var(--surface2); border: 1px solid var(--border); 
+  display: flex; align-items: center; justify-content: center; 
+  font-size: 15px; cursor: pointer; color: #fff;
+  transition: all 0.2s;
+}
+.acq-ico:active { transform: scale(0.9); background: var(--surface3); }
+
+.ai-call { color: var(--green); }
+.ai-wa { color: #25d366; }
+.ai-note { color: var(--text2); }
+.ai-match { color: var(--blue); }
+
+.badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.b-blue { background: var(--blue-bg); color: var(--blue); }
+.b-orange { background: var(--orange-bg); color: var(--orange); }
+.b-green { background: var(--green-bg); color: var(--green); }
+.b-red { background: var(--red-bg); color: var(--red); }
+.b-gray { background: var(--surface2); color: var(--text3); }
 </style>
