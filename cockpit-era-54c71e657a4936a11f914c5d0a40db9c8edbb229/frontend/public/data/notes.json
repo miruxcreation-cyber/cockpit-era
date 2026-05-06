@@ -1,0 +1,44 @@
+[
+  {
+    "id": "note-001",
+    "titre": "Relance vendeur NGATCHOU",
+    "contenu": "Relancer le dossier du 226 Boulevard Anatole France mardi matin. Confirmer disponibilité pour une visite acquéreur qualifié.",
+    "type": "relance",
+    "date": "2026-04-10T09:00:00.000Z"
+  },
+  {
+    "id": "note-002",
+    "titre": "Préparer estimation CARDIET",
+    "contenu": "Comparer 3 ventes récentes secteur Olympe de Gouges. Affiner fourchette 190k-310k et préparer argumentaire FAI vs net vendeur.",
+    "type": "estimation",
+    "date": "2026-04-09T14:30:00.000Z"
+  },
+  {
+    "id": "note-003",
+    "titre": "Matching ORTILLON",
+    "contenu": "Acquéreurs potentiels à prioriser: Aziz, Lyazid, Meliant. Vérifier budget réel et fenêtre de financement avant relance groupée.",
+    "type": "matching",
+    "date": "2026-04-08T11:15:00.000Z"
+  },
+  {
+    "id": "note-004",
+    "titre": "Suivi exclusif BEGUE",
+    "contenu": "Mandat exclusif Stains: mettre à jour le propriétaire sur les retours de visite et proposer ajustement stratégie diffusion.",
+    "type": "mandat",
+    "date": "2026-04-07T17:20:00.000Z"
+  },
+  {
+    "id": "note-005",
+    "titre": "Terrain Pleyel",
+    "contenu": "Secteur prioritaire à renforcer: Villa Anatole France et Bd Anatole. Programmer campagne boitage et qualification propriétaires.",
+    "type": "terrain",
+    "date": "2026-04-06T08:45:00.000Z"
+  },
+  {
+    "id": "note-006",
+    "titre": "Rappel RDV du jour",
+    "contenu": "RDV CARDIET à 14h30: apporter comparables, simulation commission et planning de mise en commercialisation.",
+    "type": "rdv",
+    "date": "2026-04-13T09:10:00.000Z"
+  }
+]

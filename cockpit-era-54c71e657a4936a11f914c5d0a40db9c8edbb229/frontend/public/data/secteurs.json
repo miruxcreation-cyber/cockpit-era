@@ -1,0 +1,47 @@
+[
+  {
+    "id": "sect-001",
+    "nom": "Pleyel — Anatole France",
+    "desc": "Bd Anatole France, Villa Anatole France, Imp Jules Daunay, Imp Louis, Rue Francis de Pressensé",
+    "ville": "93200 Saint-Denis",
+    "prio": "haute",
+    "notes": "Zone prioritaire. Secteur Pleyel en forte valorisation (JO 2024, Grand Paris Express).",
+    "created": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "sect-002",
+    "nom": "Cristino Garcia",
+    "desc": "Rue Cristino Garcia n°51-53",
+    "ville": "93200 Saint-Denis",
+    "prio": "moyenne",
+    "notes": "",
+    "created": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "sect-003",
+    "nom": "Front Populaire — Landy",
+    "desc": "Rue du Landy n°66-72 et 222-232",
+    "ville": "93210 Saint-Denis",
+    "prio": "haute",
+    "notes": "Secteur en développement autour de la station Front Populaire.",
+    "created": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "sect-004",
+    "nom": "Avenue du Président Wilson",
+    "desc": "Av du Pdt Wilson n°132-256",
+    "ville": "93200 Saint-Denis / Stains",
+    "prio": "moyenne",
+    "notes": "Axe résidentiel entre Saint-Denis et Stains.",
+    "created": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "sect-005",
+    "nom": "Rue Olympe de Gouges",
+    "desc": "Rue Olympe de Gouges n°2-4",
+    "ville": "93210 Saint-Denis",
+    "prio": "haute",
+    "notes": "Mandat CARDIET en cours au n°2-4. Secteur à développer.",
+    "created": "2026-01-01T00:00:00Z"
+  }
+]

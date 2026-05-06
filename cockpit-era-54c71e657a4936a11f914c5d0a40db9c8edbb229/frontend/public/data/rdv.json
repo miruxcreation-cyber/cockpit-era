@@ -1,0 +1,15 @@
+[
+  {
+    "id": "rdv-demo-001",
+    "client": "CARDIET Damien",
+    "objet": "📊 Estimation",
+    "date": "2026-04-13",
+    "heure": "14:30",
+    "lieu": "2 Rue Olympe de Gouges, Saint-Denis",
+    "notes": "Apporter l'estimation ERA et les comparables du secteur.",
+    "tel": "09 81 24 99 9",
+    "rappelMin": 30,
+    "done": false,
+    "created": "2026-04-13T10:00:00Z"
+  }
+]
